@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>From JSON file to Firebase collection</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { 
+      font-family: system-ui, sans-serif; 
+      max-width: 600px; 
+      margin: 2rem auto; 
+      padding: 2rem; 
+      text-align: center;
+    }
+    .container {
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      padding: 2rem;
+      background: #f9f9f9;
+    }
+    input[type="file"] {
+      margin: 1rem 0;
+      padding: 0.5rem;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+    button {
+      background: #007acc;
+      color: white;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin: 0.5rem;
+    }
+    button:hover { background: #005c99; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    #status {
+      margin-top: 1rem;
+      padding: 0.5rem;
+      border-radius: 5px;
+      min-height: 20px;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>From JSON file to Firebase collection</h1>
+    <p>Seleziona un file JSON e importa i dati nella collezione Firebase</p>
+    
+    <input type="file" id="fileInput" accept="application/json" />
+    <br>
+    <button id="importBtn" disabled>Importa in Firebase</button>
+    
+    <div id="status"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // Configurazione Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAOeyEp6D0X96sWpy5KY37gg6tYXo0lZzE",
+      authDomain: "progetto-libri-aac45.firebaseapp.com",
+      projectId: "progetto-libri-aac45",
+      storageBucket: "progetto-libri-aac45.firebasestorage.app",
+      messagingSenderId: "1018934086185",
+      appId: "1:1018934086185:web:fc5212a2e5066c9543ea38",
+      measurementId: "G-GWW9XK0GLB"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const fileInput = document.getElementById('fileInput');
+    const importBtn = document.getElementById('importBtn');
+    const status = document.getElementById('status');
+
+    fileInput.onchange = () => {
+      importBtn.disabled = !fileInput.files[0];
+    };
+
+    importBtn.onclick = async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      status.className = 'info';
+      status.textContent = 'Leggendo file...';
+      importBtn.disabled = true;
+
+      try {
+        const text = await file.text();
+        const rawData = JSON.parse(text);
+        
+        let data = [];
+        if (Array.isArray(rawData)) {
+          data = rawData;
+        } else if (rawData.libri_originali && Array.isArray(rawData.libri_originali)) {
+          data = rawData.libri_originali;
+        } else if (typeof rawData === 'object') {
+          const arrayProperty = Object.values(rawData).find(value => Array.isArray(value));
+          if (arrayProperty) data = arrayProperty;
+          else throw new Error("Nessun array trovato nel JSON");
+        }
+
+        status.textContent = `Importando ${data.length} elementi...`;
+
+        let imported = 0;
+        for (const item of data) {
+          const bookData = {
+            title: item.title || item.titolo || "Senza titolo",
+            author: item.author || item.autore || "Autore sconosciuto",
+            year: item.year || item.anno || null,
+            tags: item.tags || item.tag || [],
+            imported_at: new Date()
+          };
+
+          const docRef = doc(collection(db, "books"));
+          await setDoc(docRef, bookData);
+          imported++;
+          
+          if (imported % 10 === 0) {
+            status.textContent = `Importati ${imported}/${data.length}...`;
+          }
+        }
+
+        status.className = 'success';
+        status.textContent = `✓ Importati ${imported} elementi con successo!`;
+        
+      } catch (error) {
+        status.className = 'error';
+        status.textContent = `Errore: ${error.message}`;
+      }
+      
+      importBtn.disabled = false;
+    };
+  </script>
+</body>
+</html>

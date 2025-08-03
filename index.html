@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblioteca Digitale - Ricerca Libri</title>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-color: #f093fb;
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent-color: #4facfe;
+            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --success-color: #11998e;
+            --warning-color: #f093fb;
+            --danger-color: #fc4a1a;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --bg-primary: #f7fafc;
+            --bg-secondary: #edf2f7;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+            --shadow-xl: 0 20px 25px rgba(0,0,0,0.1), 0 10px 10px rgba(0,0,0,0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif; 
+            margin: 0; 
+            padding: 1rem; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            background-attachment: fixed;
+        }
+
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px; 
+            padding: 2rem; 
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+            border-radius: 20px 20px 0 0;
+        }
+
+        header { 
+            text-align: center; 
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        header h1 { 
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        /* Navigazione tra sezioni */
+        .navigation-section {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            justify-content: center;
+        }
+        
+        .nav-btn {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: 2px solid transparent;
+            border-radius: 50px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(247,250,252,0.8) 100%);
+            backdrop-filter: blur(10px);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-color);
+        }
+        
+        .nav-btn.active {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+        
+        .section-content {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .search-section { 
+            margin-bottom: 2rem; 
+        }
+        
+        .search-bar {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        
+        .search-bar .autocomplete-container {
+            position: relative;
+        }
+        
+        .search-bar input { 
+            width: 100%; 
+            padding: 1rem 1.5rem 1rem 3rem; 
+            font-size: 1.1rem; 
+            border: 2px solid transparent; 
+            border-radius: 50px; 
+            background: white;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+        
+        .search-bar input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-lg), 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .search-bar::before {
+            content: '🔍';
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            z-index: 1;
+        }
+        
+        .filters { 
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(247,250,252,0.9) 100%);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem; 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: var(--shadow-md);
+        }
+        .filters-row { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 1rem; 
+            margin-bottom: 1rem; 
+        }
+        .filter-group { 
+            flex: 1; 
+            min-width: 200px; 
+        }
+        .filter-group label { 
+            display: block; 
+            margin-bottom: 0.5rem; 
+            font-weight: bold; 
+        }
+        .filter-group input, .filter-group select { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 2px solid var(--border-color); 
+            border-radius: 8px; 
+            background: white;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+        
+        .filter-group input:focus, .filter-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .checkbox-group { 
+            display: flex; 
+            align-items: center; 
+        }
+        .checkbox-label { 
+            display: flex; 
+            align-items: center; 
+            font-weight: normal !important; 
+        }
+        .checkbox-label input[type="checkbox"] { 
+            width: auto; 
+            margin-right: 0.5rem; 
+        }
+        .autocomplete-container { 
+            position: relative; 
+        }
+        .suggestions-dropdown { 
+            position: absolute; 
+            top: 100%; 
+            left: 0; 
+            right: 0; 
+            background: white; 
+            border: 1px solid #ddd; 
+            border-top: none; 
+            max-height: 200px; 
+            overflow-y: auto; 
+            z-index: 1000; 
+            display: none; 
+        }
+        .suggestions-dropdown div { 
+            padding: 0.5rem; 
+            cursor: pointer; 
+        }
+        .suggestions-dropdown div:hover { 
+            background: #f0f0f0; 
+        }
+        .range-filter {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .range-filter input {
+            flex: 1;
+            min-width: 80px;
+        }
+        .range-filter span {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .genre-filter-section { 
+            margin-top: 1rem; 
+        }
+        .genre-section-title { 
+            font-weight: bold; 
+            margin-bottom: 0.5rem; 
+            display: block; 
+        }
+        .genre-checkboxes-expanded { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 0.5rem; 
+            margin-bottom: 1rem; 
+        }
+        .filters-actions { 
+            display: flex; 
+            gap: 0.5rem; 
+        }
+        .stats { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 1.5rem; 
+            padding: 1rem; 
+            background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,245,251,0.8) 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .stats span {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .action-buttons { 
+            display: flex; 
+            gap: 0.75rem; 
+            flex-wrap: wrap; 
+        }
+        
+        .action-buttons button { 
+            padding: 0.75rem 1.25rem; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .action-buttons button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .add-book-btn { 
+            background: var(--primary-gradient);
+            color: white; 
+        }
+        .sort-section { 
+            display: flex; 
+            align-items: center; 
+            gap: 1rem; 
+            margin-bottom: 1.5rem; 
+            flex-wrap: wrap; 
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(247,250,252,0.7) 100%);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sort-section label {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .sort-section select {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .sort-section select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .sort-order-buttons { 
+            display: flex; 
+            gap: 0.5rem; 
+            background: rgba(255,255,255,0.5);
+            padding: 0.25rem;
+            border-radius: 8px;
+        }
+        
+        .sort-btn { 
+            padding: 0.5rem 1rem; 
+            border: none;
+            background: transparent; 
+            cursor: pointer; 
+            border-radius: 6px; 
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .sort-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .sort-btn.active { 
+            background: var(--primary-gradient);
+            color: white; 
+            box-shadow: var(--shadow-sm);
+        }
+        .books-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
+            gap: 1.5rem; 
+        }
+        
+        .book-card { 
+            border: none;
+            border-radius: 16px; 
+            padding: 1.5rem; 
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .book-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .book-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .book-card h3 { 
+            margin: 0 0 0.75rem 0; 
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        
+        .book-card .author { 
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem; 
+            font-weight: 500;
+            font-size: 1rem;
+        }
+        
+        .book-card .year { 
+            color: var(--text-muted);
+            font-size: 0.9rem; 
+            font-weight: 500;
+        }
+        
+        .book-card .tags { 
+            margin-top: 1rem; 
+        }
+        .tag { 
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 0.25rem 0.75rem; 
+            border-radius: 16px; 
+            font-size: 0.8rem; 
+            margin-right: 0.5rem; 
+            margin-bottom: 0.25rem;
+            color: #1565c0;
+            font-weight: 500;
+            display: inline-block;
+            box-shadow: 0 1px 3px rgba(21, 101, 192, 0.1);
+        }
+        
+        .loading { 
+            text-align: center; 
+            padding: 3rem; 
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(240,245,251,0.5) 100%);
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .no-results { 
+            text-align: center; 
+            padding: 3rem; 
+            color: var(--text-muted);
+            background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(240,245,251,0.5) 100%);
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .no-results h3 {
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .hidden { 
+            display: none; 
+        }
+        
+        .add-book-form { 
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px; 
+            padding: 1.5rem; 
+            margin: 1.5rem 0; 
+            box-shadow: var(--shadow-md);
+        }
+        .form-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .form-header h3 {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .close-form-btn { 
+            background: var(--danger-color);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            padding: 0.5rem 0.75rem; 
+            cursor: pointer; 
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .close-form-btn:hover {
+            background: #e63946;
+            transform: scale(1.05);
+        }
+        
+        .form-section { 
+            margin-bottom: 1.5rem; 
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .form-section h4 { 
+            margin-bottom: 1rem; 
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .form-row { 
+            display: flex; 
+            gap: 1rem; 
+            margin-bottom: 1rem; 
+        }
+        
+        .form-group { 
+            flex: 1; 
+        }
+        
+        .form-group.full-width { 
+            flex: none; 
+            width: 100%; 
+        }
+        
+        .form-group label { 
+            display: block; 
+            margin-bottom: 0.5rem; 
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 2px solid var(--border-color); 
+            border-radius: 8px; 
+            background: white;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-actions { 
+            display: flex; 
+            gap: 0.75rem; 
+            justify-content: flex-end; 
+            margin-top: 1.5rem;
+        }
+        
+        .btn-primary { 
+            background: var(--primary-gradient);
+            color: white; 
+            border: none; 
+            padding: 0.75rem 1.5rem; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary { 
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            color: white; 
+            border: none; 
+            padding: 0.75rem 1.5rem; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .search-status { 
+            padding: 0.75rem; 
+            border-radius: 8px; 
+            margin-top: 0.75rem; 
+            font-weight: 500;
+        }
+        
+        .api-result { 
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 1px solid #b8dabd;
+            border-radius: 12px; 
+            padding: 1.25rem; 
+            margin-bottom: 1rem; 
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .api-result:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .api-result h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-primary);
+        }
+        
+        .api-result p {
+            margin: 0.25rem 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .manual-message { 
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa6 100%);
+            border: 1px solid #ffd97d;
+            border-radius: 12px; 
+            padding: 1.25rem; 
+            margin-bottom: 1rem; 
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .duplicate-warning {
+            background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%);
+            border: 1px solid #ff9999;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+            color: #cc0000;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease-in;
+            box-shadow: 0 2px 4px rgba(204, 0, 0, 0.1);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Stili specifici per la wishlist */
+        .wishlist-card {
+            border-left: 4px solid var(--accent-color);
+        }
+        
+        .priority {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        
+        .priority-1 {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            color: #d63031;
+        }
+        
+        .priority-2 {
+            background: linear-gradient(135deg, #a8e6cf 0%, #74b9ff 100%);
+            color: #2d3436;
+        }
+        
+        .priority-3 {
+            background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .price {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        
+        .notes {
+            border-left: 3px solid var(--accent-color);
+            padding-left: 0.75rem !important;
+        }
+        
+        /* Stili per il dialog di trasferimento alla biblioteca */
+        #moveToLibraryDialog input:focus,
+        #moveToLibraryDialog select:focus,
+        #moveToLibraryDialog textarea:focus {
+            outline: none;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        #moveToLibraryDialog button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15) !important;
+        }
+        
+        #moveToLibraryDialog button:active {
+            transform: translateY(0);
+        }
+        
+        .loading-search {
+            background: linear-gradient(135deg, #cce5ff 0%, #b3d9ff 100%);
+            border: 1px solid #80c7ff;
+            border-radius: 12px; 
+            padding: 1.25rem; 
+            margin-bottom: 1rem; 
+            box-shadow: var(--shadow-sm);
+            text-align: center;
+        }
+        
+        .small { 
+            font-size: 0.85em; 
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        
+        input, button, select, textarea { 
+            font-family: inherit; 
+        }
+        
+        button:hover { 
+            opacity: 0.9; 
+        }
+        
+        /* Animazioni personalizzate */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .book-card {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+        
+        /* Scrollbar personalizzata */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-gradient);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6b5b95 100%);
+        }
+        
+        @media (max-width: 768px) {
+            .container { 
+                padding: 1rem; 
+                margin: 0.5rem;
+                border-radius: 16px;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .filters-row { 
+                flex-direction: column; 
+            }
+            
+            .stats { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: 1rem; 
+            }
+            
+            .sort-section { 
+                flex-direction: column; 
+                align-items: flex-start; 
+            }
+            
+            .books-grid { 
+                grid-template-columns: 1fr; 
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .action-buttons {
+                justify-content: center;
+            }
+        }
+
+        /* Stili per il Quiz */
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .quiz-intro {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+        }
+
+        .quiz-intro h2 {
+            margin: 0 0 1rem 0;
+            font-size: 1.8rem;
+        }
+
+        .quiz-intro p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .quiz-start-btn {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+            margin-top: 1rem;
+        }
+
+        .quiz-start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .quiz-question {
+            background: rgba(102, 126, 234, 0.05);
+            border: 2px solid rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .quiz-question.active {
+            display: block;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .question-number {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .question-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 1rem 0;
+        }
+
+        .quiz-options {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .quiz-option {
+            margin-bottom: 1rem;
+        }
+
+        .quiz-option input[type="radio"] {
+            display: none;
+        }
+
+        .quiz-option label {
+            display: block;
+            padding: 1rem 1.5rem;
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .quiz-option label:hover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateX(5px);
+        }
+
+        .quiz-option input[type="radio"]:checked + label {
+            background: var(--primary-gradient);
+            color: white;
+            border-color: transparent;
+            transform: translateX(10px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .quiz-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .quiz-nav-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-prev-btn {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+
+        .quiz-prev-btn:hover {
+            background: var(--border-color);
+        }
+
+        .quiz-next-btn, .quiz-finish-btn {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .quiz-next-btn:hover, .quiz-finish-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .quiz-progress {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-gradient);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .quiz-results {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%);
+            border: 2px solid rgba(17, 153, 142, 0.2);
+            border-radius: 16px;
+            margin-top: 2rem;
+        }
+
+        .quiz-results.show {
+            display: block;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .recommended-book {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            box-shadow: var(--shadow-md);
+            border: 3px solid var(--success-color);
+        }
+
+        .recommended-book h3 {
+            color: var(--success-color);
+            margin: 0 0 1rem 0;
+            font-size: 1.5rem;
+        }
+
+        .book-recommendation {
+            text-align: left;
+        }
+
+        .book-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .book-author {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .recommendation-reason {
+            background: rgba(17, 153, 142, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--success-color);
+            font-style: italic;
+            margin-top: 1rem;
+        }
+
+        .recommendation-actions {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .similar-book-btn {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .similar-book-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .similar-book-suggestion {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .similar-book-suggestion h4 {
+            color: var(--accent-color);
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+        }
+
+        .suggested-book {
+            background: white;
+            border-radius: 8px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .suggestion-reason, .where-to-find {
+            margin: 0.8rem 0;
+            padding: 0.8rem;
+            border-radius: 6px;
+        }
+
+        .suggestion-reason {
+            background: rgba(79, 172, 254, 0.1);
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .where-to-find {
+            background: rgba(17, 153, 142, 0.1);
+            border-left: 3px solid var(--success-color);
+        }
+
+        .suggestion-actions {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .add-to-wishlist-btn {
+            background: var(--success-color);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .add-to-wishlist-btn:hover {
+            background: #0d7377;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .add-to-wishlist-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-suggestion {
+            background: rgba(252, 74, 26, 0.1);
+            border: 2px solid rgba(252, 74, 26, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .error-suggestion h4 {
+            color: var(--danger-color);
+            margin: 0 0 0.5rem 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .quiz-restart-btn {
+            background: var(--secondary-gradient);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1.5rem;
+        }
+
+        .quiz-restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .loading-quiz {
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .api-error {
+            background: rgba(252, 74, 26, 0.1);
+            border: 2px solid rgba(252, 74, 26, 0.2);
+            color: var(--danger-color);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        /* Stili per il menu di esportazione */
+        .export-menu {
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: var(--shadow-lg);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .export-options h4 {
+            margin: 0 0 1rem 0;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .export-buttons button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+            min-width: 140px;
+        }
+
+        .export-buttons .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .export-buttons .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .export-buttons .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .export-info {
+            text-align: center;
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .export-info small {
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        /* Notifica di esportazione */
+        .export-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success-color);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: var(--shadow-lg);
+            z-index: 9999;
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .export-notification.error {
+            background: var(--danger-color);
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>DGBBlio</h1>
+            <p>design by Matteo</p>
+        </header>
+
+        <!-- Navigazione tra sezioni -->
+        <div class="navigation-section">
+            <button onclick="showSection('books')" id="booksTabBtn" class="nav-btn active">📚 I Miei Libri</button>
+            <button onclick="showSection('wishlist')" id="wishlistTabBtn" class="nav-btn">💝 Lista Desideri</button>
+            <button onclick="showSection('quiz')" id="quizTabBtn" class="nav-btn">🧠 Quiz Libri</button>
+        </div>
+
+        <!-- Sezione Libri -->
+        <div id="booksSection" class="section-content">
+        <div class="search-section">
+            <div class="search-bar">
+                <div class="autocomplete-container">
+                    <input type="text" id="searchInput" placeholder="Cerca per titolo...">
+                    <div id="titleSuggestions" class="suggestions-dropdown"></div>
+                </div>
+            </div>
+
+            <div class="filters">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="authorFilter">Filtra per Autore:</label>
+                        <div class="autocomplete-container">
+                            <input type="text" id="authorFilter" placeholder="Cerca autore...">
+                            <div id="authorSuggestions" class="suggestions-dropdown"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="yearRange">Anno:</label>
+                        <div class="range-filter">
+                            <input type="number" id="yearMin" placeholder="Da" min="1000" max="2030">
+                            <span>-</span>
+                            <input type="number" id="yearMax" placeholder="A" min="1000" max="2030">
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="pagesRange">Pagine:</label>
+                        <div class="range-filter">
+                            <input type="number" id="pagesMin" placeholder="Da" min="1">
+                            <span>-</span>
+                            <input type="number" id="pagesMax" placeholder="A" min="1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="hasTagsFilter">Con tag:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="hasTagsFilter"> Solo libri con tag
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="hasDescriptionFilter">Con descrizione:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="hasDescriptionFilter"> Solo libri con descrizione
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sezione Tag separata -->
+                <div class="genre-filter-section">
+                    <label class="genre-section-title">
+                        Filtra per Tag:
+                    </label>
+                    <div id="tagCheckboxes" class="genre-checkboxes-expanded">
+                        <!-- I checkbox dei tag verranno generati dinamicamente -->
+                    </div>
+                    
+                    <!-- Pulsanti di azione -->
+                    <div class="filters-actions">
+                        <button onclick="clearAllFilters()" class="btn-secondary">Pulisci filtri</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <span id="totalBooks">Caricamento...</span>
+            <span id="filteredBooks"></span>
+            <div class="action-buttons">
+                <button onclick="toggleAddBookForm()" class="add-book-btn">Aggiungi Libro</button>
+                <button onclick="showExportMenu()" class="btn-secondary">📥 Esporta Libri</button>
+            </div>
+        </div>
+
+        <!-- Menu di esportazione -->
+        <div id="exportMenu" class="export-menu" style="display: none;">
+            <div class="export-options">
+                <h4>Esporta la tua biblioteca</h4>
+                <div class="export-buttons">
+                    <button onclick="exportBooksJSON()" class="btn-primary">
+                        📋 Esporta JSON
+                    </button>
+                    <button onclick="exportBooksExcel()" class="btn-primary">
+                        📊 Esporta Excel
+                    </button>
+                    <button onclick="hideExportMenu()" class="btn-secondary">
+                        ✕ Chiudi
+                    </button>
+                </div>
+                <p class="export-info">
+                    <small>Il file includerà tutti i libri attualmente visualizzati (filtri applicati)</small>
+                </p>
+            </div>
+        </div>
+
+        <!-- Form per aggiungere libro -->
+        <div id="addBookForm" class="add-book-form" style="display: none;">
+            <div class="form-header">
+                <h3>Aggiungi Nuovo Libro</h3>
+                <button onclick="toggleAddBookForm()" class="close-form-btn">✕</button>
+            </div>
+            <form id="bookForm" onsubmit="addNewBook(event)">
+                <div class="form-section">
+                    <h4>Informazioni Base</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bookTitle">Titolo:</label>
+                            <input type="text" id="bookTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="bookAuthor">Autore:</label>
+                            <input type="text" id="bookAuthor" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <button type="button" onclick="searchBookData()" class="btn-primary" style="width: 100%;">
+                                🔍 Cerca Automaticamente
+                            </button>
+                        </div>
+                    </div>
+                    <div id="searchResults" style="display: none; margin-top: 1rem;">
+                        <!-- I risultati della ricerca appariranno qui -->
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bookYear">Anno:</label>
+                            <input type="number" id="bookYear" min="1000" max="2030">
+                        </div>
+                        <div class="form-group">
+                            <label for="bookPublisher">Editore:</label>
+                            <input type="text" id="bookPublisher">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bookPages">Pagine:</label>
+                            <input type="number" id="bookPages" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="bookIsbn">ISBN:</label>
+                            <input type="text" id="bookIsbn">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>Descrizione e Tag</h4>
+                    <div class="form-group full-width">
+                        <label for="bookDescription">Descrizione:</label>
+                        <textarea id="bookDescription" rows="4"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="bookTags">Tag (separati da virgola):</label>
+                        <input type="text" id="bookTags" placeholder="romanzo, avventura, classico">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>Valutazione Personale</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bookRating">Voto (1-5):</label>
+                            <select id="bookRating">
+                                <option value="">Nessun voto</option>
+                                <option value="1">⭐ 1 - Pessimo</option>
+                                <option value="2">⭐⭐ 2 - Scarso</option>
+                                <option value="3">⭐⭐⭐ 3 - Buono</option>
+                                <option value="4">⭐⭐⭐⭐ 4 - Ottimo</option>
+                                <option value="5">⭐⭐⭐⭐⭐ 5 - Eccellente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="bookComment">Commento personale:</label>
+                        <textarea id="bookComment" rows="3" placeholder="Le tue impressioni sul libro..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" onclick="clearBookForm()" class="btn-secondary">Cancella</button>
+                    <button type="submit" class="btn-primary">Salva Libro</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="sort-section">
+            <label for="sortBy">Ordina per:</label>
+            <select id="sortBy">
+                <option value="title">Titolo</option>
+                <option value="author">Autore</option>
+                <option value="year">Anno</option>
+                <option value="pages">Pagine</option>
+            </select>
+            
+            <div class="sort-order-buttons">
+                <button onclick="setSortOrder('asc')" id="sortAscBtn" class="sort-btn active">Crescente</button>
+                <button onclick="setSortOrder('desc')" id="sortDescBtn" class="sort-btn">Decrescente</button>
+            </div>
+            
+            <div class="view-options">
+                <label for="viewMode">Vista:</label>
+                <select id="viewMode">
+                    <option value="compact">Compatta</option>
+                    <option value="detailed" selected>Dettagliata</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="booksGrid" class="books-grid">
+            <div class="loading">Caricamento libri...</div>
+        </div>
+
+        <div id="noResults" class="no-results" style="display: none;">
+            <h3>Nessun libro trovato</h3>
+            <p>Prova a modificare i criteri di ricerca o i filtri.</p>
+        </div>
+        </div>
+        <!-- Fine Sezione Libri -->
+
+        <!-- Sezione Wishlist -->
+        <div id="wishlistSection" class="section-content" style="display: none;">
+        <div class="search-section">
+            <div class="search-bar">
+                <div class="autocomplete-container">
+                    <input type="text" id="wishlistSearchInput" placeholder="Cerca nella wishlist per titolo...">
+                    <div id="wishlistTitleSuggestions" class="suggestions-dropdown"></div>
+                </div>
+            </div>
+
+            <div class="filters">
+                <div class="stats">
+                    <span id="totalWishlist">Totale: 0 libri</span>
+                    <span id="filteredWishlist" class="hidden">Filtrati: 0 libri</span>
+                </div>
+
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="wishlistAuthorFilter">Autore:</label>
+                        <div class="autocomplete-container">
+                            <input type="text" id="wishlistAuthorFilter" placeholder="Filtra per autore...">
+                            <div id="wishlistAuthorSuggestions" class="suggestions-dropdown"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="wishlistYearMin">Anno min:</label>
+                        <input type="number" id="wishlistYearMin" min="1000" max="2030" placeholder="1990">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="wishlistYearMax">Anno max:</label>
+                        <input type="number" id="wishlistYearMax" min="1000" max="2030" placeholder="2025">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="wishlistPagesMin">Pagine min:</label>
+                        <input type="number" id="wishlistPagesMin" min="1" placeholder="100">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="wishlistPagesMax">Pagine max:</label>
+                        <input type="number" id="wishlistPagesMax" min="1" placeholder="500">
+                    </div>
+
+                    <div class="filter-group">
+                        <button onclick="clearAllWishlistFilters()" class="btn-secondary">Pulisci Filtri</button>
+                    </div>
+                </div>
+
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="wishlistHasTagsFilter">Con tag:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="wishlistHasTagsFilter"> Solo libri con tag
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="wishlistHasDescriptionFilter">Con descrizione:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="wishlistHasDescriptionFilter"> Solo libri con descrizione
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="wishlistPriorityFilter">Priorità:</label>
+                        <select id="wishlistPriorityFilter">
+                            <option value="">Tutte le priorità</option>
+                            <option value="1">⭐ Bassa</option>
+                            <option value="2">⭐⭐ Media</option>
+                            <option value="3">⭐⭐⭐ Alta</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sezione Tag separata -->
+                <div class="genre-filter-section">
+                    <label>Filtra per tag:</label>
+                    <div id="wishlistTagCheckboxes" class="checkbox-container">
+                        <!-- I checkbox dei tag verranno aggiunti dinamicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button onclick="toggleAddWishlistForm()" class="btn-primary">➕ Aggiungi alla Wishlist</button>
+        </div>
+
+        <div id="addWishlistForm" class="add-book-form" style="display: none;">
+            <h3>Aggiungi libro alla Wishlist</h3>
+            <form id="wishlistForm" onsubmit="addNewWishlistItem(event)">
+                <div class="form-section">
+                    <h4>Informazioni di Base</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="wishlistBookTitle">Titolo*:</label>
+                            <input type="text" id="wishlistBookTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="wishlistBookAuthor">Autore*:</label>
+                            <input type="text" id="wishlistBookAuthor" required>
+                        </div>
+                    </div>
+                    <div class="search-actions">
+                        <button type="button" onclick="searchWishlistBookData()" class="btn-secondary">🔍 Cerca Info Automatiche</button>
+                    </div>
+                    <div id="wishlistSearchResults" style="display: none; margin-top: 1rem;">
+                        <!-- I risultati della ricerca appariranno qui -->
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="wishlistBookYear">Anno:</label>
+                            <input type="number" id="wishlistBookYear" min="1000" max="2030">
+                        </div>
+                        <div class="form-group">
+                            <label for="wishlistBookPublisher">Editore:</label>
+                            <input type="text" id="wishlistBookPublisher">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="wishlistBookPages">Pagine:</label>
+                            <input type="number" id="wishlistBookPages" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="wishlistBookIsbn">ISBN:</label>
+                            <input type="text" id="wishlistBookIsbn">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>Descrizione e Tag</h4>
+                    <div class="form-group full-width">
+                        <label for="wishlistBookDescription">Descrizione:</label>
+                        <textarea id="wishlistBookDescription" rows="4"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="wishlistBookTags">Tag (separati da virgola):</label>
+                        <input type="text" id="wishlistBookTags" placeholder="romanzo, avventura, classico">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>Priorità e Note</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="wishlistBookPriority">Priorità (1-3):</label>
+                            <select id="wishlistBookPriority">
+                                <option value="2" selected>⭐⭐ Media</option>
+                                <option value="1">⭐ Bassa</option>
+                                <option value="3">⭐⭐⭐ Alta</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="wishlistBookPrice">Prezzo stimato:</label>
+                            <input type="text" id="wishlistBookPrice" placeholder="€15.00">
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="wishlistBookNotes">Note personali:</label>
+                        <textarea id="wishlistBookNotes" rows="3" placeholder="Perché vuoi leggere questo libro..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" onclick="clearWishlistForm()" class="btn-secondary">Cancella</button>
+                    <button type="submit" class="btn-primary">Salva nella Wishlist</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="sort-section">
+            <label for="wishlistSortBy">Ordina per:</label>
+            <select id="wishlistSortBy">
+                <option value="priority">Priorità</option>
+                <option value="title">Titolo</option>
+                <option value="author">Autore</option>
+                <option value="year">Anno</option>
+                <option value="pages">Pagine</option>
+            </select>
+            
+            <div class="sort-order-buttons">
+                <button onclick="setWishlistSortOrder('asc')" id="wishlistSortAscBtn" class="sort-btn active">Crescente</button>
+                <button onclick="setWishlistSortOrder('desc')" id="wishlistSortDescBtn" class="sort-btn">Decrescente</button>
+            </div>
+            
+            <div class="view-options">
+                <label for="wishlistViewMode">Vista:</label>
+                <select id="wishlistViewMode">
+                    <option value="compact">Compatta</option>
+                    <option value="detailed" selected>Dettagliata</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="wishlistGrid" class="books-grid">
+            <div class="loading">Caricamento wishlist...</div>
+        </div>
+
+        <div id="wishlistNoResults" class="no-results" style="display: none;">
+            <h3>Nessun libro trovato nella wishlist</h3>
+            <p>Prova a modificare i criteri di ricerca o i filtri.</p>
+        </div>
+        </div>
+        <!-- Fine Sezione Wishlist -->
+
+        <!-- Sezione Quiz -->
+        <div id="quizSection" class="section-content" style="display: none;">
+            <div class="quiz-container">
+                <!-- Introduzione Quiz -->
+                <div id="quizIntro" class="quiz-intro">
+                    <h2>🧠 Quiz di Raccomandazione Libri</h2>
+                    <p>Rispondi a qualche domanda sui tuoi gusti letterari e ti consiglierò un libro perfetto dalla tua biblioteca!</p>
+                    <p>Il quiz analizza i tuoi autori preferiti, i generi che ami e le trame che ti coinvolgono di più.</p>
+                    <button onclick="startQuiz()" class="quiz-start-btn">🚀 Inizia il Quiz</button>
+                </div>
+
+                <!-- Container delle domande -->
+                <div id="quizQuestions" style="display: none;">
+                    <!-- Le domande verranno generate dinamicamente qui -->
+                </div>
+
+                <!-- Navigazione Quiz -->
+                <div id="quizNavigation" class="quiz-navigation" style="display: none;">
+                    <button onclick="previousQuestion()" class="quiz-nav-btn quiz-prev-btn" id="prevBtn">← Indietro</button>
+                    
+                    <div class="quiz-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                        <span id="progressText">0 / 0</span>
+                    </div>
+                    
+                    <button onclick="nextQuestion()" class="quiz-nav-btn quiz-next-btn" id="nextBtn">Avanti →</button>
+                    <button onclick="finishQuiz()" class="quiz-nav-btn quiz-finish-btn" id="finishBtn" style="display: none;">🎯 Ottieni Raccomandazione</button>
+                </div>
+
+                <!-- Risultati Quiz -->
+                <div id="quizResults" class="quiz-results">
+                    <h2>🎉 Ecco il libro perfetto per te!</h2>
+                    <div id="recommendedBook" class="recommended-book">
+                        <!-- Il libro raccomandato apparirà qui -->
+                    </div>
+                    <button onclick="restartQuiz()" class="quiz-restart-btn">🔄 Rifai il Quiz</button>
+                </div>
+
+                <!-- Stati di caricamento/errore -->
+                <div id="quizLoading" class="loading-quiz" style="display: none;">
+                    <p>🤖 Sto analizzando le tue risposte con Gemini AI...</p>
+                    <p>Trovando il libro perfetto per te! ⏳</p>
+                </div>
+
+                <div id="quizError" class="api-error" style="display: none;">
+                    <h3>⚠️ Errore</h3>
+                    <p id="errorMessage">Si è verificato un errore durante l'analisi delle tue risposte.</p>
+                    <button onclick="restartQuiz()" class="quiz-restart-btn">🔄 Riprova</button>
+                </div>
+            </div>
+        </div>
+        <!-- Fine Sezione Quiz -->
+    </div>
+    
+    <!-- Firebase SDK moderno -->
+    <script type="module">
+        // Import Firebase SDK (modular)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithPopup, 
+            signOut, 
+            GoogleAuthProvider, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            updateDoc, 
+            deleteDoc, 
+            getDocs, 
+            onSnapshot,
+            query,
+            orderBy 
+        } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        // Configurazione Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAOeyEp6D0X96sWpy5KY37gg6tYXo0lZzE",
+            authDomain: "progetto-libri-aac45.firebaseapp.com",
+            projectId: "progetto-libri-aac45",
+            storageBucket: "progetto-libri-aac45.firebasestorage.app",
+            messagingSenderId: "1018934086185",
+            appId: "1:1018934086185:web:fc5212a2e5066c9543ea38",
+            measurementId: "G-GWW9XK0GLB"
+        };
+
+        // Inizializza Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Rendi disponibili globalmente
+        window.firebaseApp = app;
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.firebaseModules = {
+            signInWithPopup,
+            signOut,
+            GoogleAuthProvider,
+            onAuthStateChanged,
+            collection,
+            doc,
+            getDoc,
+            setDoc,
+            updateDoc,
+            deleteDoc,
+            getDocs,
+            onSnapshot,
+            query,
+            orderBy
+        };
+
+        console.log("Firebase inizializzato correttamente per app");
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>
