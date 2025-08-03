@@ -167,9 +167,8 @@ digital-library/
 ├── index.html              # Main HTML file with UI and Firebase config
 ├── app.js                  # Main JavaScript application logic
 ├── README.md              # This file
-└── caricare json su firebase/
-    ├── json_to_firebase.html    # JSON import utility
-    └── raccolta_libri.json      # Sample book data
+├── json_to_firebase.html    # JSON import utility
+└── raccolta_libri.json      # Sample book data
 ```
 
 ### Key Components
@@ -261,3 +260,4 @@ Please use the [Issues](https://github.com/yourusername/digital-library/issues) 
 ---
 
 **Made with ❤️ for book lovers**
+
