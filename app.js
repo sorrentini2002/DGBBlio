@@ -15,6 +15,13 @@ waitForFirebase().then(() => {
     initApp();
 });
 
+// ===== VARIABILI GLOBALI =====
+let allBooks = [];
+let allWishlistItems = [];
+let allAuthors = new Set();
+let allTitles = new Set();
+let allTags = new Set();
+
 function initApp() {
     console.log("🚀 Inizializzazione applicazione...");
     
@@ -98,15 +105,27 @@ function initApp() {
     const bookForm = document.getElementById("bookForm");
 
     let editingId = null;
-    let allBooks = [];
     let unsubscribeBooks = null;
     let currentSortOrder = 'asc';
-    let allAuthors = new Set();
-    let allTitles = new Set();
-    let allTags = new Set();
 
     // Avvia l'ascolto dei libri senza autenticazione
     startListeningBooks();
+    
+    // Aggiungi alcuni dati di test per vedere se i datalist funzionano
+    setTimeout(() => {
+        if (allTitles.size === 0) {
+            console.log("📚 Nessun libro caricato da Firebase, aggiungo dati di test per i datalist");
+            allTitles.add("Il Signore degli Anelli");
+            allTitles.add("1984");
+            allTitles.add("Harry Potter e la Pietra Filosofale");
+            
+            allAuthors.add("J.R.R. Tolkien");
+            allAuthors.add("George Orwell");
+            allAuthors.add("J.K. Rowling");
+            
+            updateFormDataLists();
+        }
+    }, 2000);
 
     // ---- Sistema di suggerimenti per titolo ----
     function setupTitleSuggestions() {
@@ -326,6 +345,9 @@ function initApp() {
             tagCheckboxes.appendChild(label);
         });
 
+        // Aggiorna i datalist per il form di inserimento libri
+        updateFormDataLists();
+
         // Inizializza i sistemi di suggerimenti
         setupTitleSuggestions();
         setupAuthorSuggestions();
@@ -458,10 +480,12 @@ function initApp() {
                     <div class="author">di ${escapeHtml(book.author || 'Autore sconosciuto')}</div>
                     ${ratingHtml}
                     ${tagsHtml ? `<div class="tags" style="margin-top: 1rem;">${tagsHtml}</div>` : ''}
-                    <div style="margin-top: 0.75rem;">
-                        <button onclick="editBook('${book.id}')" class="btn-secondary">Modifica</button>
-                        <button onclick="deleteBook('${book.id}')" class="btn-danger" style="margin-left: 0.5rem;" title="Elimina libro">🗑️ Elimina</button>
+                    <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="editBook('${book.id}')" class="btn-secondary" style="flex: 1; min-width: 80px;">Modifica</button>
+                        <button onclick="deleteBook('${book.id}')" class="btn-danger" style="flex: 1; min-width: 80px;" title="Elimina libro">🗑️ Elimina</button>
+                        <button onclick="showBookRecommendations('${book.id}')" class="btn-primary" style="flex: 1; min-width: 80px; background: var(--accent-gradient);" title="Trova libri simili">✨ Simili</button>
                     </div>
+                    <div id="recommendations-${book.id}" class="book-recommendations" style="margin-top: 0.5rem; display: none;"></div>
                 `;
             } 
             // Vista dettagliata: tutte le info tranne le date
@@ -474,19 +498,44 @@ function initApp() {
                 const ratingHtml = book.rating ? `<div class="rating" style="margin-top: 0.5rem; font-weight: 600; color: var(--accent-color);">⭐ Voto: ${book.rating}/5</div>` : '';
                 const commentHtml = book.comment ? `<div class="comment" style="margin-top: 0.5rem; font-style: italic; color: var(--text-secondary); background: rgba(255,255,255,0.5); padding: 0.5rem; border-radius: 8px;"><strong>Commento:</strong> ${escapeHtml(book.comment)}</div>` : '';
                 
+                // Gestione trama con pulsante "Trama completa"
+                let descriptionHtml = '';
+                if (book.description) {
+                    const isLong = book.description.length > 200;
+                    const shortDescription = book.description.substring(0, 200);
+                    descriptionHtml = `
+                        <div class="description" style="margin-top: 0.5rem; font-style: italic;">
+                            <div id="desc-short-${book.id}" ${isLong ? '' : 'style="display: none;"'}>
+                                ${escapeHtml(shortDescription)}${isLong ? '...' : ''}
+                                ${isLong ? `<button onclick="toggleFullDescription('${book.id}')" class="btn-link" style="margin-left: 0.5rem; font-size: 0.85rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white; border: none; border-radius: 4px; cursor: pointer;">📖 Trama completa</button>` : ''}
+                            </div>
+                            <div id="desc-full-${book.id}" style="display: none; color: var(--text-secondary); line-height: 1.5; background: rgba(255,255,255,0.5); padding: 0.75rem; border-radius: 8px; border-left: 3px solid var(--accent-color);">
+                                <strong>Trama:</strong><br>${escapeHtml(book.description)}
+                                <button onclick="toggleFullDescription('${book.id}')" class="btn-link" style="margin-top: 0.5rem; font-size: 0.85rem; padding: 0.25rem 0.5rem; background: var(--text-muted); color: white; border: none; border-radius: 4px; cursor: pointer;">➖ Riduci</button>
+                            </div>
+                        </div>
+                    `;
+                    // Se la descrizione è breve, mostra direttamente quella completa
+                    if (!isLong) {
+                        descriptionHtml = `<div class="small" style="margin-top: 0.5rem; font-style: italic;">${escapeHtml(book.description)}</div>`;
+                    }
+                }
+                
                 bookCard.innerHTML = `
                     <h3>${escapeHtml(book.title || 'Titolo non specificato')}</h3>
                     <div class="author">di ${escapeHtml(book.author || 'Autore sconosciuto')}</div>
                     <div class="year">${book.year || 'Anno non specificato'}</div>
                     ${ratingHtml}
                     ${additionalInfo.length > 0 ? `<div class="small" style="margin-top: 0.5rem;">${additionalInfo.join(' • ')}</div>` : ''}
-                    ${book.description ? `<div class="small" style="margin-top: 0.5rem; font-style: italic;">${escapeHtml(book.description.substring(0, 200))}${book.description.length > 200 ? '...' : ''}</div>` : ''}
+                    ${descriptionHtml}
                     ${commentHtml}
                     ${tagsHtml ? `<div class="tags" style="margin-top: 0.5rem;">${tagsHtml}</div>` : ''}
-                    <div style="margin-top: 0.75rem;">
-                        <button onclick="editBook('${book.id}')" class="btn-secondary">Modifica</button>
-                        <button onclick="deleteBook('${book.id}')" class="btn-danger" style="margin-left: 0.5rem;" title="Elimina libro">🗑️ Elimina</button>
+                    <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="editBook('${book.id}')" class="btn-secondary" style="flex: 1; min-width: 100px;">Modifica</button>
+                        <button onclick="deleteBook('${book.id}')" class="btn-danger" style="flex: 1; min-width: 100px;" title="Elimina libro">🗑️ Elimina</button>
+                        <button onclick="showBookRecommendations('${book.id}')" class="btn-primary" style="flex: 1; min-width: 100px; background: var(--accent-gradient);" title="Trova libri simili">✨ Simili</button>
                     </div>
+                    <div id="recommendations-${book.id}" class="book-recommendations" style="margin-top: 1rem; display: none;"></div>
                 `;
             }
             
@@ -864,6 +913,299 @@ function initApp() {
         }[s]));
     }
     
+    // ---- Funzione per toggle trama completa ----
+    window.toggleFullDescription = (id) => {
+        const shortElement = document.getElementById(`desc-short-${id}`);
+        const fullElement = document.getElementById(`desc-full-${id}`);
+        
+        if (shortElement && fullElement) {
+            if (fullElement.style.display === 'none') {
+                // Mostra trama completa
+                shortElement.style.display = 'none';
+                fullElement.style.display = 'block';
+                fullElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                // Mostra trama ridotta
+                fullElement.style.display = 'none';
+                shortElement.style.display = 'block';
+            }
+        }
+    };
+    
+    // ---- Funzioni per raccomandazioni libri ----
+    window.showBookRecommendations = async (bookId) => {
+        const book = allBooks.find(b => b.id === bookId);
+        if (!book) {
+            console.warn(`⚠️ Libro con ID ${bookId} non trovato`);
+            return;
+        }
+
+        const recommendationsContainer = document.getElementById(`recommendations-${bookId}`);
+        if (!recommendationsContainer) {
+            console.warn(`⚠️ Container raccomandazioni non trovato per ${bookId}`);
+            return;
+        }
+
+        // Toggle visibilità
+        if (recommendationsContainer.style.display === 'none' || !recommendationsContainer.style.display) {
+            recommendationsContainer.style.display = 'block';
+            
+            // Genera raccomandazioni se non esistono già
+            if (recommendationsContainer.innerHTML.trim() === '') {
+                try {
+                    console.log(`🎯 Generazione raccomandazioni per: "${book.title}"`);
+                    
+                    await bookRecommendationUI.renderRecommendations(
+                        `recommendations-${bookId}`, 
+                        book, 
+                        allBooks, 
+                        {
+                            showReasons: true,
+                            showStats: false,
+                            maxRecommendations: 4,
+                            enableAnimations: true,
+                            compact: true
+                        }
+                    );
+                    
+                    // Scroll smooth al container
+                    setTimeout(() => {
+                        recommendationsContainer.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'nearest' 
+                        });
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('❌ Errore nella generazione raccomandazioni:', error);
+                    recommendationsContainer.innerHTML = `
+                        <div style="text-align: center; padding: 1rem; color: var(--text-muted);">
+                            <p>😅 Non riesco a generare raccomandazioni al momento</p>
+                            <button onclick="showBookRecommendations('${bookId}')" class="btn-secondary small">
+                                🔄 Riprova
+                            </button>
+                        </div>
+                    `;
+                }
+            } else {
+                // Se già esistono, scroll al container
+                setTimeout(() => {
+                    recommendationsContainer.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest' 
+                    });
+                }, 100);
+            }
+        } else {
+            // Nascondi raccomandazioni
+            recommendationsContainer.style.display = 'none';
+        }
+    };
+
+    // ---- Integrazione raccomandazioni con Wishlist ----
+    window.addRecommendedBookToWishlist = async (bookData) => {
+        try {
+            // Controlla se già presente nella wishlist
+            const existsInWishlist = allWishlistItems.some(item => 
+                item.title.toLowerCase().trim() === bookData.title.toLowerCase().trim() && 
+                item.author.toLowerCase().trim() === bookData.author.toLowerCase().trim()
+            );
+
+            if (existsInWishlist) {
+                alert('📚 Questo libro è già nella tua wishlist!');
+                return;
+            }
+
+            // Controlla se già letto
+            const existsInLibrary = allBooks.some(book => 
+                book.title.toLowerCase().trim() === bookData.title.toLowerCase().trim() && 
+                book.author.toLowerCase().trim() === bookData.author.toLowerCase().trim()
+            );
+
+            if (existsInLibrary) {
+                alert('📖 Hai già questo libro nella tua biblioteca!');
+                return;
+            }
+
+            // Aggiungi alla wishlist
+            const wishlistData = {
+                title: bookData.title,
+                author: bookData.author,
+                description: bookData.description || '',
+                tags: bookData.tags || [],
+                year: bookData.year || null,
+                pages: bookData.pages || null,
+                priority: 2, // Priorità media per default
+                notes: 'Aggiunto dalle raccomandazioni IA',
+                addedAt: new Date().toISOString()
+            };
+
+            const wishlistRef = collection(db, 'wishlist');
+            await setDoc(doc(wishlistRef), wishlistData);
+
+            // Feedback visivo
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 2rem;
+                right: 2rem;
+                background: var(--success-color);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 12px;
+                box-shadow: var(--shadow-xl);
+                z-index: 1000;
+                font-weight: 600;
+                animation: slideInRight 0.3s ease;
+            `;
+            notification.innerHTML = `
+                ✅ "${bookData.title}" aggiunto alla wishlist!
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+
+            console.log(`✅ Libro "${bookData.title}" aggiunto alla wishlist`);
+
+        } catch (error) {
+            console.error('❌ Errore nell\'aggiunta alla wishlist:', error);
+            alert('❌ Errore nell\'aggiunta alla wishlist. Riprova.');
+        }
+    };
+
+    // ---- Reset sistema raccomandazioni (per debug/admin) ----
+    window.resetRecommendationSystem = () => {
+        if (confirm('🔄 Vuoi resettare tutti i dati del sistema di raccomandazione?\n\nQuesta operazione cancellerà:\n- Feedback sui libri\n- Cronologia visualizzazioni\n- Cache del sistema\n\nL\'operazione non può essere annullata!')) {
+            bookRecommendationSystem.resetUserData();
+            alert('✅ Sistema di raccomandazione resettato!');
+        }
+    };
+
+    // ---- Esportazione dati raccomandazioni ----
+    window.exportRecommendationData = () => {
+        try {
+            const data = bookRecommendationSystem.exportUserData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `raccomandazioni_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('📥 Dati raccomandazioni esportati');
+        } catch (error) {
+            console.error('❌ Errore nell\'esportazione:', error);
+        }
+    };
+
+    // ---- Importazione dati raccomandazioni ----
+    window.importRecommendationData = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    bookRecommendationSystem.importUserData(data);
+                    alert('✅ Dati raccomandazioni importati con successo!');
+                } catch (error) {
+                    console.error('❌ Errore nell\'importazione:', error);
+                    alert('❌ Errore nel file di importazione.');
+                }
+            };
+            reader.readAsText(file);
+        };
+        
+        input.click();
+    };
+
+    // ---- Raccomandazioni per wishlist ----
+    window.showWishlistRecommendations = async (wishlistId) => {
+        const wishlistItem = allWishlistItems.find(item => item.id === wishlistId);
+        if (!wishlistItem) {
+            console.warn(`⚠️ Elemento wishlist con ID ${wishlistId} non trovato`);
+            return;
+        }
+
+        const recommendationsContainer = document.getElementById(`wishlist-recommendations-${wishlistId}`);
+        if (!recommendationsContainer) {
+            console.warn(`⚠️ Container raccomandazioni wishlist non trovato per ${wishlistId}`);
+            return;
+        }
+
+        // Toggle visibilità
+        if (recommendationsContainer.style.display === 'none' || !recommendationsContainer.style.display) {
+            recommendationsContainer.style.display = 'block';
+            
+            // Genera raccomandazioni se non esistono già
+            if (recommendationsContainer.innerHTML.trim() === '') {
+                try {
+                    console.log(`🎯 Generazione raccomandazioni wishlist per: "${wishlistItem.title}"`);
+                    
+                    // Usa sia i libri letti che gli altri elementi della wishlist per le raccomandazioni
+                    const allAvailableItems = [...allBooks, ...allWishlistItems.filter(item => item.id !== wishlistId)];
+                    
+                    await bookRecommendationUI.renderRecommendations(
+                        `wishlist-recommendations-${wishlistId}`, 
+                        wishlistItem, 
+                        allAvailableItems, 
+                        {
+                            showReasons: true,
+                            showStats: false,
+                            maxRecommendations: 3,
+                            enableAnimations: true,
+                            compact: true
+                        }
+                    );
+                    
+                    // Scroll smooth al container
+                    setTimeout(() => {
+                        recommendationsContainer.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'nearest' 
+                        });
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('❌ Errore nella generazione raccomandazioni wishlist:', error);
+                    recommendationsContainer.innerHTML = `
+                        <div style="text-align: center; padding: 1rem; color: var(--text-muted);">
+                            <p>😅 Non riesco a generare raccomandazioni al momento</p>
+                            <button onclick="showWishlistRecommendations('${wishlistId}')" class="btn-secondary small">
+                                🔄 Riprova
+                            </button>
+                        </div>
+                    `;
+                }
+            } else {
+                // Se già esistono, scroll al container
+                setTimeout(() => {
+                    recommendationsContainer.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest' 
+                    });
+                }, 100);
+            }
+        } else {
+            // Nascondi raccomandazioni
+            recommendationsContainer.style.display = 'none';
+        }
+    };
+    
     // ---- Controllo duplicati in tempo reale ----
     function setupDuplicateCheck() {
         const titleInput = document.getElementById('bookTitle');
@@ -958,19 +1300,23 @@ function initApp() {
         const booksSection = document.getElementById('booksSection');
         const wishlistSection = document.getElementById('wishlistSection');
         const quizSection = document.getElementById('quizSection');
+        const recommendationsSection = document.getElementById('recommendationsSection');
         const booksTabBtn = document.getElementById('booksTabBtn');
         const wishlistTabBtn = document.getElementById('wishlistTabBtn');
         const quizTabBtn = document.getElementById('quizTabBtn');
+        const recommendationsTabBtn = document.getElementById('recommendationsTabBtn');
         
         // Nascondi tutte le sezioni
         booksSection.style.display = 'none';
         wishlistSection.style.display = 'none';
         quizSection.style.display = 'none';
+        if (recommendationsSection) recommendationsSection.style.display = 'none';
         
         // Rimuovi active da tutti i pulsanti
         booksTabBtn.classList.remove('active');
         wishlistTabBtn.classList.remove('active');
         quizTabBtn.classList.remove('active');
+        if (recommendationsTabBtn) recommendationsTabBtn.classList.remove('active');
         
         if (section === 'books') {
             booksSection.style.display = 'block';
@@ -986,6 +1332,14 @@ function initApp() {
         } else if (section === 'quiz') {
             quizSection.style.display = 'block';
             quizTabBtn.classList.add('active');
+        } else if (section === 'recommendations') {
+            if (recommendationsSection) {
+                recommendationsSection.style.display = 'block';
+                if (recommendationsTabBtn) recommendationsTabBtn.classList.add('active');
+                
+                // Aggiorna le statistiche quando si entra nella sezione
+                updateRecommendationStats();
+            }
         }
     };
     
@@ -1315,6 +1669,29 @@ function initApp() {
                 const priceHtml = item.price ? `<div class="price" style="margin-top: 0.5rem; font-weight: 600; color: var(--accent-color);">💰 Prezzo stimato: ${escapeHtml(item.price)}</div>` : '';
                 const notesHtml = item.notes ? `<div class="notes" style="margin-top: 0.5rem; font-style: italic; color: var(--text-secondary); background: rgba(255,255,255,0.5); padding: 0.5rem; border-radius: 8px;"><strong>Note:</strong> ${escapeHtml(item.notes)}</div>` : '';
                 
+                // Gestione trama con pulsante "Trama completa"
+                let descriptionHtml = '';
+                if (item.description) {
+                    const isLong = item.description.length > 200;
+                    const shortDescription = item.description.substring(0, 200);
+                    descriptionHtml = `
+                        <div class="description" style="margin-top: 0.5rem; font-style: italic;">
+                            <div id="desc-short-wishlist-${item.id}" ${isLong ? '' : 'style="display: none;"'}>
+                                ${escapeHtml(shortDescription)}${isLong ? '...' : ''}
+                                ${isLong ? `<button onclick="toggleFullDescription('wishlist-${item.id}')" class="btn-link" style="margin-left: 0.5rem; font-size: 0.85rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white; border: none; border-radius: 4px; cursor: pointer;">📖 Trama completa</button>` : ''}
+                            </div>
+                            <div id="desc-full-wishlist-${item.id}" style="display: none; color: var(--text-secondary); line-height: 1.5; background: rgba(255,255,255,0.5); padding: 0.75rem; border-radius: 8px; border-left: 3px solid var(--accent-color);">
+                                <strong>Trama:</strong><br>${escapeHtml(item.description)}
+                                <button onclick="toggleFullDescription('wishlist-${item.id}')" class="btn-link" style="margin-top: 0.5rem; font-size: 0.85rem; padding: 0.25rem 0.5rem; background: var(--text-muted); color: white; border: none; border-radius: 4px; cursor: pointer;">➖ Riduci</button>
+                            </div>
+                        </div>
+                    `;
+                    // Se la descrizione è breve, mostra direttamente quella completa
+                    if (!isLong) {
+                        descriptionHtml = `<div class="small" style="margin-top: 0.5rem; font-style: italic;">${escapeHtml(item.description)}</div>`;
+                    }
+                }
+                
                 itemCard.innerHTML = `
                     <h3>${escapeHtml(item.title || 'Titolo non specificato')}</h3>
                     <div class="author">di ${escapeHtml(item.author || 'Autore sconosciuto')}</div>
@@ -1322,14 +1699,16 @@ function initApp() {
                     ${priorityHtml}
                     ${priceHtml}
                     ${additionalInfo.length > 0 ? `<div class="small" style="margin-top: 0.5rem;">${additionalInfo.join(' • ')}</div>` : ''}
-                    ${item.description ? `<div class="small" style="margin-top: 0.5rem; font-style: italic;">${escapeHtml(item.description.substring(0, 200))}${item.description.length > 200 ? '...' : ''}</div>` : ''}
+                    ${descriptionHtml}
                     ${notesHtml}
                     ${tagsHtml ? `<div class="tags" style="margin-top: 0.5rem;">${tagsHtml}</div>` : ''}
                     <div style="margin-top: 0.75rem;">
                         <button onclick="editWishlistItem('${item.id}')" class="btn-secondary">Modifica</button>
                         <button onclick="moveToLibrary('${item.id}')" class="btn-primary" title="Sposta nei libri letti">📚 Letto!</button>
                         <button onclick="deleteWishlistItem('${item.id}')" class="btn-danger" style="margin-left: 0.5rem;" title="Elimina dalla wishlist">🗑️ Elimina</button>
+                        <button onclick="showWishlistRecommendations('${item.id}')" class="btn-primary" style="margin-left: 0.5rem; background: var(--accent-gradient);" title="Trova libri simili">✨ Simili</button>
                     </div>
+                    <div id="wishlist-recommendations-${item.id}" class="book-recommendations" style="margin-top: 1rem; display: none;"></div>
                 `;
             }
             
@@ -1967,6 +2346,1071 @@ function initApp() {
     // Configurazione API Gemini
     const GEMINI_API_KEY = 'AIzaSyBoUzUCb9ZaJ_aKXfXOwArqVt35U1Lg2j0';
     const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+
+    // ===== SISTEMA DI RACCOMANDAZIONE AVANZATO =====
+    
+    /**
+     * Sistema di Raccomandazione Libri con TF-IDF e Machine Learning
+     * Versione migliorata e integrata con Firebase
+     */
+    class BookRecommendationSystem {
+        constructor() {
+            this.stopWords = new Set([
+                "il", "lo", "la", "i", "gli", "le", "un", "una", "di", "e", "a", "che", "in",
+                "con", "per", "su", "da", "non", "è", "sono", "del", "della", "al", "d", "l",
+                "molto", "più", "come", "anche", "solo", "prima", "dopo", "dove", "quando",
+                "perché", "ma", "se", "già", "ancora", "poi", "così", "qui", "là", "questo",
+                "quella", "questi", "quelle", "stesso", "stessa", "altri", "altre", "tutto",
+                "tutti", "ogni", "qualche", "alcuni", "alcune", "niente", "nulla"
+            ]);
+            
+            // Storage per feedback e cronologia utente (integrato con Firebase)
+            this.userFeedback = new Map();
+            this.viewHistory = new Map();
+            
+            // Cache per performance
+            this.idfCache = new Map();
+            this.vectorCache = new Map();
+            this.lastCacheUpdate = null;
+            this.cacheTimeout = 300000; // 5 minuti
+            
+            // Pesi per diversi fattori di raccomandazione
+            this.weights = {
+                similarity: 0.35,
+                rating: 0.25,
+                feedback: 0.20,
+                popularity: 0.15,
+                freshness: 0.05
+            };
+            
+            // Inizializza dal localStorage se disponibile
+            this.loadUserDataFromStorage();
+        }
+
+        // === TOKENIZZAZIONE AVANZATA ===
+        tokenize(text) {
+            if (!text || typeof text !== 'string') return [];
+            
+            return text
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Rimuove accenti
+                .replace(/[^\w\s]/g, ' ')
+                .split(/\s+/)
+                .filter(word => 
+                    word.length > 2 && 
+                    !this.stopWords.has(word) &&
+                    !/^\d+$/.test(word) // Rimuove numeri puri
+                )
+                .slice(0, 150); // Aumentato limite per migliore analisi
+        }
+
+        // === CALCOLO IDF CON CACHING MIGLIORATO ===
+        buildIdf(allTexts) {
+            if (!allTexts || allTexts.length === 0) return new Map();
+            
+            const cacheKey = `idf_${allTexts.length}_${JSON.stringify(allTexts.slice(0, 3).map(t => t?.slice(0, 30) || ''))}`;
+            
+            if (this.idfCache.has(cacheKey) && this.isCacheValid()) {
+                return this.idfCache.get(cacheKey);
+            }
+
+            const documentFrequency = new Map();
+            const totalDocuments = allTexts.length;
+
+            // Calcolo frequency con ottimizzazione
+            allTexts.forEach(text => {
+                const uniqueTokens = new Set(this.tokenize(text));
+                uniqueTokens.forEach(token => {
+                    documentFrequency.set(token, (documentFrequency.get(token) || 0) + 1);
+                });
+            });
+
+            // Calcolo IDF con smoothing logaritmico migliorato
+            const idf = new Map();
+            documentFrequency.forEach((freq, token) => {
+                const idfValue = Math.log((totalDocuments + 1) / (freq + 1)) + 1;
+                if (idfValue > 0.1) { // Filtra termini con IDF troppo basso
+                    idf.set(token, idfValue);
+                }
+            });
+
+            this.idfCache.set(cacheKey, idf);
+            this.lastCacheUpdate = Date.now();
+            return idf;
+        }
+
+        // === CALCOLO VETTORE TF-IDF OTTIMIZZATO ===
+        calculateTfIdfVector(text, idf) {
+            if (!text || !idf || idf.size === 0) return new Map();
+            
+            const cacheKey = `vector_${text?.slice(0, 50) || ''}_${idf.size}`;
+            
+            if (this.vectorCache.has(cacheKey) && this.isCacheValid()) {
+                return this.vectorCache.get(cacheKey);
+            }
+
+            const tokens = this.tokenize(text);
+            if (tokens.length === 0) return new Map();
+            
+            const termFrequency = new Map();
+            
+            // Calcolo TF con normalizzazione
+            tokens.forEach(token => {
+                termFrequency.set(token, (termFrequency.get(token) || 0) + 1);
+            });
+
+            const maxFreq = Math.max(...termFrequency.values(), 1);
+            const vector = new Map();
+
+            termFrequency.forEach((freq, term) => {
+                const normalizedTf = freq / maxFreq;
+                const idfValue = idf.get(term) || 0;
+                if (idfValue > 0.1) { // Soglia per filtrare termini poco significativi
+                    const tfidf = normalizedTf * idfValue;
+                    if (tfidf > 0.01) { // Ulteriore filtro per performance
+                        vector.set(term, tfidf);
+                    }
+                }
+            });
+
+            this.vectorCache.set(cacheKey, vector);
+            return vector;
+        }
+
+        // === SIMILARITÀ COSENO OTTIMIZZATA ===
+        cosineSimilarity(vectorA, vectorB) {
+            if (!vectorA || !vectorB || vectorA.size === 0 || vectorB.size === 0) return 0;
+
+            const commonKeys = [...vectorA.keys()].filter(key => vectorB.has(key));
+            
+            if (commonKeys.length === 0) return 0;
+
+            let dotProduct = 0;
+            let normA = 0;
+            let normB = 0;
+
+            // Calcolo ottimizzato
+            vectorA.forEach((value, key) => {
+                normA += value * value;
+                if (vectorB.has(key)) {
+                    dotProduct += value * vectorB.get(key);
+                }
+            });
+
+            vectorB.forEach(value => {
+                normB += value * value;
+            });
+
+            const denominator = Math.sqrt(normA * normB);
+            return denominator > 0 ? Math.min(dotProduct / denominator, 1) : 0;
+        }
+
+        // === ESTRAZIONE TESTO LIBRO MIGLIORATA ===
+        extractBookText(book, preferences = {}) {
+            if (!book) return '';
+            
+            const defaultPrefs = {
+                useTitle: true,
+                useDescription: true,
+                useGenre: true,
+                useTags: true,
+                useAuthor: true
+            };
+            
+            const prefs = { ...defaultPrefs, ...preferences };
+            const textParts = [];
+            
+            // Pesi differenziati per diversi campi
+            const weights = {
+                title: 4,     // Peso maggiore per il titolo
+                author: 3,    // Peso alto per l'autore
+                tags: 2,      // Peso medio per i tag
+                genre: 2,     // Peso medio per il genere
+                description: 1 // Peso base per la descrizione
+            };
+
+            if (prefs.useTitle && book.title) {
+                textParts.push(book.title.repeat(weights.title));
+            }
+            
+            if (prefs.useAuthor && book.author) {
+                textParts.push(book.author.repeat(weights.author));
+            }
+            
+            if (prefs.useTags && book.tags && Array.isArray(book.tags)) {
+                const tagsText = book.tags.join(' ').repeat(weights.tags);
+                textParts.push(tagsText);
+            }
+            
+            if (prefs.useGenre && book.genre) {
+                textParts.push(book.genre.repeat(weights.genre));
+            }
+            
+            if (prefs.useDescription && book.description) {
+                textParts.push(book.description);
+            }
+
+            return textParts.join(' ');
+        }
+
+        // === CALCOLO POPOLARITÀ E METRICHE ===
+        calculatePopularity(book) {
+            if (!book) return 0;
+            
+            const views = this.viewHistory.get(book.title) || 0;
+            const feedback = this.userFeedback.get(book.title) || 0;
+            const rating = book.rating || 0;
+            
+            // Formula composita per popolarità
+            const popularityScore = 
+                Math.log(views + 1) * 0.4 +
+                Math.max(feedback, 0) * 0.3 +
+                (rating / 5) * 0.3;
+                
+            return Math.min(popularityScore, 1); // Normalizza a [0,1]
+        }
+        
+        calculateFreshness(book) {
+            // Peso dell'anno rimosso per preferenza dell'utente
+            return 1.0; // Valore neutro per tutti i libri
+        }
+
+        // === RACCOMANDAZIONI PRINCIPALI ===
+        getRecommendations(selectedBook, allBooks, preferences = {}, topN = 8) {
+            if (!selectedBook || !allBooks || allBooks.length === 0) return [];
+
+            console.log(`🔍 Generazione raccomandazioni per: "${selectedBook.title}"`);
+            
+            // Registra visualizzazione
+            this.viewHistory.set(selectedBook.title, 
+                (this.viewHistory.get(selectedBook.title) || 0) + 1);
+
+            const availableBooks = allBooks.filter(book => 
+                book.title !== selectedBook.title && book.id !== selectedBook.id);
+            
+            if (availableBooks.length === 0) return [];
+            
+            // Scegli algoritmo in base alle preferenze
+            const mode = preferences.mode || "hybrid";
+            
+            switch (mode) {
+                case "content":
+                    return this.getContentBasedRecommendations(selectedBook, availableBooks, topN);
+                case "style":
+                    return this.getStyleBasedRecommendations(selectedBook, availableBooks, preferences, topN);
+                case "hybrid":
+                default:
+                    return this.getHybridRecommendations(selectedBook, availableBooks, preferences, topN);
+            }
+        }
+
+        // === RACCOMANDAZIONI IBRIDE (MIGLIORI) ===
+        getHybridRecommendations(selectedBook, books, preferences, topN) {
+            const contentRecs = this.getContentBasedRecommendations(selectedBook, books, topN * 2);
+            const styleRecs = this.getStyleBasedRecommendations(selectedBook, books, preferences, topN * 2);
+            
+            // Combina e pondera i risultati
+            const combinedScores = new Map();
+            
+            contentRecs.forEach(rec => {
+                const key = rec.book.title;
+                if (!combinedScores.has(key)) {
+                    combinedScores.set(key, { ...rec, combinedScore: 0 });
+                }
+                combinedScores.get(key).combinedScore += rec.score * 0.4;
+            });
+            
+            styleRecs.forEach(rec => {
+                const key = rec.book.title;
+                if (!combinedScores.has(key)) {
+                    combinedScores.set(key, { ...rec, combinedScore: 0 });
+                }
+                combinedScores.get(key).combinedScore += rec.score * 0.6;
+                
+                // Aggiungi informazioni di stile se non presenti
+                const existing = combinedScores.get(key);
+                if (!existing.similarity && rec.similarity) {
+                    existing.similarity = rec.similarity;
+                    existing.commonWords = rec.commonWords;
+                }
+            });
+            
+            return Array.from(combinedScores.values())
+                .sort((a, b) => b.combinedScore - a.combinedScore)
+                .slice(0, topN)
+                .map(rec => ({
+                    ...rec,
+                    score: rec.combinedScore,
+                    method: 'hybrid'
+                }));
+        }
+
+        // === RACCOMANDAZIONI BASATE SUL CONTENUTO ===
+        getContentBasedRecommendations(selectedBook, books, topN) {
+            return books.map(book => {
+                let score = 0;
+                const reasons = [];
+
+                // Stesso genere/tag
+                const commonTags = this.getCommonTags(selectedBook, book);
+                if (commonTags.length > 0) {
+                    const tagScore = Math.min(commonTags.length * 0.2, 0.6);
+                    score += tagScore;
+                    reasons.push(`Tag comuni: ${commonTags.slice(0, 3).join(', ')}`);
+                }
+
+                // Stesso autore
+                if (book.author && selectedBook.author && 
+                    book.author.toLowerCase() === selectedBook.author.toLowerCase()) {
+                    score += 0.7;
+                    reasons.push(`Stesso autore: ${book.author}`);
+                }
+
+                // Rating del libro
+                if (book.rating && book.rating >= 4) {
+                    score += 0.15;
+                    reasons.push(`Libro ben valutato (${book.rating}/5)`);
+                }
+
+                // Feedback utente precedente
+                const feedback = this.userFeedback.get(book.title) || 0;
+                if (feedback > 0) {
+                    score += feedback * 0.2;
+                    reasons.push('Ti è piaciuto in precedenza');
+                }
+
+                // Popolarità
+                const popularity = this.calculatePopularity(book);
+                score += popularity * this.weights.popularity;
+
+                return {
+                    book,
+                    score,
+                    reasons,
+                    commonWords: [],
+                    method: 'content'
+                };
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, topN);
+        }
+
+        // === RACCOMANDAZIONI BASATE SULLO STILE ===
+        getStyleBasedRecommendations(selectedBook, books, preferences, topN) {
+            const allTexts = [selectedBook, ...books].map(book => 
+                this.extractBookText(book, preferences));
+            
+            const idf = this.buildIdf(allTexts);
+            const selectedVector = this.calculateTfIdfVector(
+                this.extractBookText(selectedBook, preferences), idf);
+
+            if (selectedVector.size === 0) {
+                console.warn('⚠️ Vettore vuoto per il libro selezionato, fallback a content-based');
+                return this.getContentBasedRecommendations(selectedBook, books, topN);
+            }
+
+            const recommendations = books.map(book => {
+                const bookText = this.extractBookText(book, preferences);
+                const bookVector = this.calculateTfIdfVector(bookText, idf);
+                
+                const similarity = this.cosineSimilarity(selectedVector, bookVector);
+                const feedback = this.userFeedback.get(book.title) || 0;
+                const popularity = this.calculatePopularity(book);
+                const freshness = this.calculateFreshness(book);
+                const ratingScore = book.rating ? (book.rating / 5) : 0.5;
+                
+                // Score composito con pesi calibrati
+                const finalScore = 
+                    similarity * this.weights.similarity +
+                    feedback * this.weights.feedback +
+                    popularity * this.weights.popularity +
+                    freshness * this.weights.freshness +
+                    ratingScore * this.weights.rating;
+
+                const commonWords = [...selectedVector.keys()]
+                    .filter(term => bookVector.has(term))
+                    .sort((a, b) => (bookVector.get(b) || 0) - (bookVector.get(a) || 0))
+                    .slice(0, 12);
+
+                return {
+                    book,
+                    score: Math.min(finalScore, 1),
+                    similarity,
+                    commonWords,
+                    reasons: this.generateReasons(book, selectedBook, similarity, commonWords),
+                    method: 'style'
+                };
+            })
+            .filter(rec => rec.similarity > 0.05) // Filtra similarità troppo basse
+            .sort((a, b) => b.score - a.score)
+            .slice(0, topN);
+
+            return recommendations;
+        }
+        
+        // === UTILITÀ PER CONFRONTI ===
+        getCommonTags(book1, book2) {
+            if (!book1.tags || !book2.tags) return [];
+            
+            const tags1 = book1.tags.map(tag => tag.toLowerCase());
+            const tags2 = book2.tags.map(tag => tag.toLowerCase());
+            
+            return tags1.filter(tag => tags2.includes(tag));
+        }
+
+        // === GENERAZIONE MOTIVI MIGLIORATA ===
+        generateReasons(book, selectedBook, similarity, commonWords) {
+            const reasons = [];
+            
+            if (similarity > 0.4) {
+                reasons.push(`Altissima affinità stilistica (${(similarity * 100).toFixed(1)}%)`);
+            } else if (similarity > 0.25) {
+                reasons.push(`Buona affinità stilistica (${(similarity * 100).toFixed(1)}%)`);
+            } else if (similarity > 0.1) {
+                reasons.push(`Stile simile (${(similarity * 100).toFixed(1)}%)`);
+            }
+            
+            // Tag/generi comuni
+            const commonTags = this.getCommonTags(selectedBook, book);
+            if (commonTags.length > 0) {
+                reasons.push(`Temi comuni: ${commonTags.slice(0, 2).join(', ')}`);
+            }
+            
+            // Stesso autore
+            if (book.author && selectedBook.author && 
+                book.author.toLowerCase() === selectedBook.author.toLowerCase()) {
+                reasons.push(`Dello stesso autore: ${book.author}`);
+            }
+            
+            // Parole chiave importanti
+            if (commonWords.length > 5) {
+                const topWords = commonWords.slice(0, 3).filter(word => word.length > 3);
+                if (topWords.length > 0) {
+                    reasons.push(`Concetti chiave: ${topWords.join(', ')}`);
+                }
+            }
+
+            // Rating alto
+            if (book.rating && book.rating >= 4) {
+                reasons.push(`Libro molto apprezzato (${book.rating}/5 stelle)`);
+            }
+
+            // Feedback positivo precedente
+            const feedback = this.userFeedback.get(book.title) || 0;
+            if (feedback > 0.5) {
+                reasons.push('Ti è piaciuto in precedenza');
+            }
+
+            return reasons.slice(0, 4); // Limita a 4 motivi per non appesantire l'UI
+        }
+
+        // === GESTIONE FEEDBACK MIGLIORATA ===
+        updateFeedback(bookTitle, rating) {
+            if (!bookTitle || typeof rating !== 'number' || rating < -1 || rating > 1) {
+                throw new Error('Rating deve essere un numero tra -1 e 1');
+            }
+            
+            const currentFeedback = this.userFeedback.get(bookTitle) || 0;
+            const decayFactor = 0.85; // Leggero decadimento per feedback precedenti
+            const newFeedback = currentFeedback * decayFactor + rating;
+            
+            this.userFeedback.set(bookTitle, Math.max(-2, Math.min(2, newFeedback)));
+            
+            // Salva nel localStorage
+            this.saveUserDataToStorage();
+            
+            // Invalida cache
+            this.invalidateCache();
+            
+            console.log(`💡 Feedback aggiornato per "${bookTitle}": ${newFeedback.toFixed(2)}`);
+        }
+
+        // === GESTIONE CACHE ===
+        isCacheValid() {
+            return this.lastCacheUpdate && 
+                   (Date.now() - this.lastCacheUpdate) < this.cacheTimeout;
+        }
+
+        invalidateCache() {
+            this.vectorCache.clear();
+            this.idfCache.clear();
+            this.lastCacheUpdate = null;
+            console.log('🗑️ Cache invalidata');
+        }
+
+        // === PERSISTENZA DATI UTENTE ===
+        saveUserDataToStorage() {
+            try {
+                const userData = {
+                    feedback: Object.fromEntries(this.userFeedback),
+                    viewHistory: Object.fromEntries(this.viewHistory),
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('bookRecommendationData', JSON.stringify(userData));
+            } catch (error) {
+                console.warn('⚠️ Impossibile salvare dati utente:', error);
+            }
+        }
+
+        loadUserDataFromStorage() {
+            try {
+                const stored = localStorage.getItem('bookRecommendationData');
+                if (stored) {
+                    const userData = JSON.parse(stored);
+                    if (userData.feedback) {
+                        this.userFeedback = new Map(Object.entries(userData.feedback));
+                    }
+                    if (userData.viewHistory) {
+                        this.viewHistory = new Map(Object.entries(userData.viewHistory));
+                    }
+                    console.log('✅ Dati utente caricati dal localStorage');
+                }
+            } catch (error) {
+                console.warn('⚠️ Impossibile caricare dati utente:', error);
+            }
+        }
+
+        // === STATISTICHE E DEBUG ===
+        getStats() {
+            return {
+                feedbackEntries: this.userFeedback.size,
+                viewHistory: this.viewHistory.size,
+                cacheSize: this.vectorCache.size + this.idfCache.size,
+                lastCacheUpdate: this.lastCacheUpdate,
+                totalViews: Array.from(this.viewHistory.values()).reduce((sum, views) => sum + views, 0)
+            };
+        }
+
+        // === ESPORTAZIONE/IMPORTAZIONE ===
+        exportUserData() {
+            return {
+                feedback: Object.fromEntries(this.userFeedback),
+                viewHistory: Object.fromEntries(this.viewHistory),
+                timestamp: Date.now(),
+                version: "2.0"
+            };
+        }
+
+        importUserData(data) {
+            try {
+                if (data.feedback) {
+                    this.userFeedback = new Map(Object.entries(data.feedback));
+                }
+                if (data.viewHistory) {
+                    this.viewHistory = new Map(Object.entries(data.viewHistory));
+                }
+                this.saveUserDataToStorage();
+                this.invalidateCache();
+                console.log('✅ Dati utente importati con successo');
+            } catch (error) {
+                console.error('❌ Errore nell\'importazione dati:', error);
+            }
+        }
+
+        // === RESET DATI ===
+        resetUserData() {
+            this.userFeedback.clear();
+            this.viewHistory.clear();
+            this.invalidateCache();
+            localStorage.removeItem('bookRecommendationData');
+            console.log('🔄 Dati utente resettati');
+        }
+    }
+
+    // Inizializza il sistema di raccomandazione
+    const bookRecommendationSystem = new BookRecommendationSystem();
+
+    // === INTERFACCIA SISTEMA DI RACCOMANDAZIONE ===
+    class BookRecommendationUI {
+        constructor(recommendationSystem) {
+            this.system = recommendationSystem;
+            this.animationDuration = 300;
+            this.currentRecommendations = [];
+        }
+
+        getSimilarityPreferences() {
+            return {
+                useTitle: document.getElementById("useTitle")?.checked ?? true,
+                useDescription: document.getElementById("useDescription")?.checked ?? true,
+                useGenre: document.getElementById("useGenre")?.checked ?? true,
+                useTags: document.getElementById("useTags")?.checked ?? true,
+                useAuthor: document.getElementById("useAuthor")?.checked ?? true,
+                mode: document.querySelector('input[name="recommendationMode"]:checked')?.value ?? "hybrid"
+            };
+        }
+
+        async renderRecommendations(containerId, selectedBook, allBooks, options = {}) {
+            const container = document.getElementById(containerId);
+            if (!container || !selectedBook) {
+                console.warn('⚠️ Container o libro selezionato non validi');
+                return;
+            }
+
+            const {
+                showReasons = true,
+                showStats = false,
+                maxRecommendations = 6,
+                enableAnimations = true,
+                compact = false
+            } = options;
+
+            // Mostra loading elegante
+            container.innerHTML = `
+                <div class="loading recommendation-loading">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                        <div style="
+                            width: 40px; 
+                            height: 40px; 
+                            border: 3px solid #f3f3f3; 
+                            border-top: 3px solid var(--primary-color); 
+                            border-radius: 50%; 
+                            animation: spin 1s linear infinite;
+                        "></div>
+                        <div>
+                            <h4>🤖 Analisi in corso...</h4>
+                            <p>Sto cercando libri perfetti per te</p>
+                        </div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+
+            try {
+                const preferences = this.getSimilarityPreferences();
+                console.log('🎯 Preferenze raccomandazione:', preferences);
+                
+                const recommendations = this.system.getRecommendations(
+                    selectedBook, allBooks, preferences, maxRecommendations);
+
+                this.currentRecommendations = recommendations;
+
+                await this.animateRecommendations(
+                    container, recommendations, enableAnimations, showReasons, showStats, compact);
+
+            } catch (error) {
+                console.error('❌ Errore nella generazione raccomandazioni:', error);
+                container.innerHTML = `
+                    <div class="error recommendation-error">
+                        <div style="text-align: center; padding: 2rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">😕</div>
+                            <h3>Oops! Qualcosa è andato storto</h3>
+                            <p>Non sono riuscito a generare le raccomandazioni per questo libro.</p>
+                            <p><small>${error.message}</small></p>
+                            <button onclick="bookRecommendationUI.renderRecommendations('${containerId}', arguments[1], arguments[2])" 
+                                    style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary-gradient); color: white; border: none; border-radius: 8px;">
+                                🔄 Riprova
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async animateRecommendations(container, recommendations, enableAnimations, showReasons, showStats, compact) {
+            const html = this.generateRecommendationsHTML(recommendations, showReasons, showStats, compact);
+            
+            if (enableAnimations && recommendations.length > 0) {
+                container.style.opacity = '0';
+                container.innerHTML = html;
+                
+                // Fade in
+                await new Promise(resolve => {
+                    container.style.transition = `opacity ${this.animationDuration}ms ease`;
+                    container.style.opacity = '1';
+                    setTimeout(resolve, this.animationDuration);
+                });
+                
+                // Anima ogni card con delay scalato
+                const cards = container.querySelectorAll('.recommendation-card');
+                cards.forEach((card, index) => {
+                    card.style.transform = 'translateY(30px)';
+                    card.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        card.style.transition = 'all 400ms cubic-bezier(0.4, 0, 0.2, 1)';
+                        card.style.transform = 'translateY(0)';
+                        card.style.opacity = '1';
+                    }, index * 80 + 100);
+                });
+                
+            } else {
+                container.innerHTML = html;
+            }
+
+            this.attachEventListeners(container);
+        }
+
+        generateRecommendationsHTML(recommendations, showReasons, showStats, compact) {
+            if (!recommendations || recommendations.length === 0) {
+                return `
+                    <div class="no-recommendations" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📚</div>
+                        <h3>Nessuna raccomandazione al momento</h3>
+                        <p>Non ho trovato libri simili nella tua biblioteca.</p>
+                        <p><small>Prova ad aggiungere più libri per ottenere raccomandazioni migliori!</small></p>
+                    </div>
+                `;
+            }
+
+            let html = `
+                <div class="recommendations-header" style="margin-bottom: 1.5rem; text-align: center;">
+                    <h3 style="margin: 0; color: var(--text-primary);">
+                        ✨ Ti potrebbe interessare anche
+                    </h3>
+                    <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.95rem;">
+                        Basato su: ${recommendations[0]?.method === 'hybrid' ? 'analisi ibrida' : 
+                                      recommendations[0]?.method === 'style' ? 'stile e contenuto' : 'contenuto'}
+                    </p>
+                </div>
+            `;
+
+            recommendations.forEach(({ book, score, similarity, commonWords, reasons, method }, index) => {
+                const scorePercentage = Math.round(score * 100);
+                const similarityPercentage = similarity ? Math.round(similarity * 100) : null;
+                
+                // Crea descrizione troncata se in modalità compatta
+                const displayDescription = compact && book.description ? 
+                    (book.description.length > 120 ? book.description.substring(0, 120) + '...' : book.description) :
+                    book.description;
+
+                const highlightedDescription = this.highlightCommonWords(displayDescription || '', commonWords || []);
+
+                html += `
+                    <div class="recommendation-card" data-book-title="${escapeHtml(book.title)}" data-book-id="${book.id || ''}" data-index="${index}"
+                         data-book-author="${escapeHtml(book.author || '')}" data-book-year="${book.year || ''}"
+                         style="
+                            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(247,250,252,0.9) 100%);
+                            border-radius: 16px;
+                            padding: 1.5rem;
+                            margin-bottom: 1rem;
+                            border: 1px solid rgba(255,255,255,0.3);
+                            box-shadow: var(--shadow-md);
+                            transition: all 0.3s ease;
+                            position: relative;
+                            overflow: hidden;
+                         "
+                         onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)';"
+                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-md)';">
+                        
+                        <div style="position: absolute; top: 0; right: 0; background: var(--primary-gradient); color: white; 
+                                    padding: 0.25rem 0.75rem; border-radius: 0 16px 0 16px; font-size: 0.85rem; font-weight: 600;">
+                            ${scorePercentage}% match
+                        </div>
+                        
+                        <div class="book-header" style="margin: 2rem 0 1rem 0; padding-right: 4rem;">
+                            <h4 style="margin: 0 0 0.25rem 0; color: var(--text-primary); font-size: 1.1rem; line-height: 1.3;">
+                                ${escapeHtml(book.title)}
+                            </h4>
+                            ${book.author ? `
+                                <p style="margin: 0; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem;">
+                                    di <strong>${escapeHtml(book.author)}</strong>
+                                    ${book.year ? `<span style="color: var(--text-muted);"> • ${book.year}</span>` : ''}
+                                </p>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="book-content">
+                            ${displayDescription ? `
+                                <div style="margin-bottom: 1rem;">
+                                    <p style="color: var(--text-secondary); line-height: 1.5; margin: 0; font-size: 0.9rem;">
+                                        ${highlightedDescription}
+                                    </p>
+                                </div>
+                            ` : ''}
+                            
+                            ${book.tags && book.tags.length > 0 ? `
+                                <div style="margin-bottom: 1rem;">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                        ${book.tags.slice(0, 5).map(tag => `
+                                            <span style="
+                                                background: var(--accent-gradient);
+                                                color: white;
+                                                padding: 0.25rem 0.75rem;
+                                                border-radius: 12px;
+                                                font-size: 0.8rem;
+                                                font-weight: 500;
+                                            ">${escapeHtml(tag)}</span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${showReasons && reasons && reasons.length > 0 ? `
+                                <div class="recommendation-reasons" style="
+                                    background: rgba(102, 126, 234, 0.1);
+                                    border-radius: 8px;
+                                    padding: 1rem;
+                                    margin-bottom: 1rem;
+                                ">
+                                    <div style="font-weight: 600; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.9rem;">
+                                        💡 Perché te lo consiglio:
+                                    </div>
+                                    <ul style="margin: 0; padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.85rem;">
+                                        ${reasons.slice(0, 3).map(reason => `<li style="margin-bottom: 0.25rem;">${reason}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="book-stats" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                                <div>
+                                    ${similarityPercentage !== null ? `Similarità: ${similarityPercentage}%` : ''}
+                                    ${book.rating ? ` • Rating: ${book.rating}/5 ⭐` : ''}
+                                </div>
+                                <div>
+                                    ${commonWords && commonWords.length > 0 ? `${commonWords.length} parole chiave` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="feedback-buttons" style="
+                            display: flex; 
+                            gap: 0.75rem; 
+                            justify-content: center;
+                            flex-wrap: wrap;
+                        ">
+                            <button class="feedback-btn like-btn" data-rating="0.8" style="
+                                padding: 0.5rem 1rem;
+                                border: 2px solid #10b981;
+                                background: transparent;
+                                color: #10b981;
+                                border-radius: 20px;
+                                font-size: 0.85rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                            ">
+                                👍 Mi interessa
+                            </button>
+                            <button class="feedback-btn neutral-btn" data-rating="0" style="
+                                padding: 0.5rem 1rem;
+                                border: 2px solid #6b7280;
+                                background: transparent;
+                                color: #6b7280;
+                                border-radius: 20px;
+                                font-size: 0.85rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                            ">
+                                ➖ Neutrale
+                            </button>
+                            <button class="feedback-btn dislike-btn" data-rating="-0.5" style="
+                                padding: 0.5rem 1rem;
+                                border: 2px solid #ef4444;
+                                background: transparent;
+                                color: #ef4444;
+                                border-radius: 20px;
+                                font-size: 0.85rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                            ">
+                                👎 Non mi interessa
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (showStats) {
+                const stats = this.system.getStats();
+                html += `
+                    <div class="system-stats" style="
+                        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+                        border-radius: 12px;
+                        padding: 1.5rem;
+                        margin-top: 2rem;
+                        border: 1px solid rgba(102, 126, 234, 0.2);
+                    ">
+                        <h4 style="margin: 0 0 1rem 0; color: var(--primary-color);">📊 Statistiche Sistema</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; font-size: 0.9rem;">
+                            <div style="text-align: center;">
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 1.2rem;">${stats.feedbackEntries}</div>
+                                <div style="color: var(--text-muted);">Feedback</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 1.2rem;">${stats.viewHistory}</div>
+                                <div style="color: var(--text-muted);">Libri visti</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 1.2rem;">${stats.totalViews}</div>
+                                <div style="color: var(--text-muted);">Visualizzazioni</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 1.2rem;">${stats.cacheSize > 0 ? 'Attiva' : 'Off'}</div>
+                                <div style="color: var(--text-muted);">Cache</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        highlightCommonWords(text, commonWords) {
+            if (!text || !commonWords || commonWords.length === 0) return text;
+
+            let highlightedText = text;
+            const wordsToHighlight = commonWords.slice(0, 8).filter(word => word.length > 3);
+            
+            wordsToHighlight.forEach(word => {
+                const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                highlightedText = highlightedText.replace(regex, 
+                    `<mark style="background: linear-gradient(135deg, #fbbf24, #f59e0b); padding: 0.1rem 0.25rem; border-radius: 3px; font-weight: 500;">${word}</mark>`
+                );
+            });
+            
+            return highlightedText;
+        }
+
+        attachEventListeners(container) {
+            // Hover effects per le card
+            container.querySelectorAll('.recommendation-card').forEach(card => {
+                card.addEventListener('mouseenter', () => {
+                    card.style.transform = 'translateY(-4px)';
+                    card.style.boxShadow = 'var(--shadow-xl)';
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'translateY(0)';
+                    card.style.boxShadow = 'var(--shadow-md)';
+                });
+            });
+
+            // Gestione feedback buttons
+            container.addEventListener('click', (event) => {
+                if (event.target.classList.contains('feedback-btn')) {
+                    event.preventDefault();
+                    event.stopPropagation(); // Ferma la propagazione per evitare l'apertura dei dettagli
+                    
+                    const card = event.target.closest('.recommendation-card');
+                    const bookTitle = card.dataset.bookTitle;
+                    const rating = parseFloat(event.target.dataset.rating);
+                    
+                    this.handleFeedback(card, bookTitle, rating, event.target);
+                }
+            });
+
+            // Hover effects per i bottoni
+            container.querySelectorAll('.feedback-btn').forEach(btn => {
+                const originalBg = btn.style.background;
+                const borderColor = btn.style.borderColor;
+                
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.background = borderColor;
+                    btn.style.color = 'white';
+                    btn.style.transform = 'translateY(-2px)';
+                });
+                
+                btn.addEventListener('mouseleave', () => {
+                    if (!btn.classList.contains('feedback-given')) {
+                        btn.style.background = originalBg;
+                        btn.style.color = borderColor;
+                        btn.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+        }
+
+        async handleFeedback(card, bookTitle, rating, button) {
+            try {
+                this.system.updateFeedback(bookTitle, rating);
+                
+                // Feedback visuale immediato
+                card.classList.add('feedback-submitted');
+                
+                // Aggiorna stato bottoni
+                const allButtons = card.querySelectorAll('.feedback-btn');
+                allButtons.forEach(btn => {
+                    btn.classList.remove('feedback-given');
+                    const borderColor = btn.style.borderColor;
+                    btn.style.background = 'transparent';
+                    btn.style.color = borderColor;
+                });
+                
+                button.classList.add('feedback-given');
+                button.style.background = button.style.borderColor;
+                button.style.color = 'white';
+                
+                // Notifica elegante
+                const feedbackText = {
+                    '0.8': '✅ Perfetto! Terrò conto che ti piacciono libri simili',
+                    '0': '📝 Feedback neutrale registrato',
+                    '-0.5': '🚫 Capito! Eviterò raccomandazioni simili'
+                };
+                
+                this.showFeedbackNotification(card, feedbackText[rating.toString()]);
+                
+                // Vibrazione leggera su dispositivi mobili
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(50);
+                }
+                
+            } catch (error) {
+                console.error('❌ Errore nel salvare feedback:', error);
+                this.showFeedbackNotification(card, '❌ Errore nel salvare il feedback', 'error');
+            }
+        }
+
+        showFeedbackNotification(card, message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `feedback-notification ${type}`;
+            notification.style.cssText = `
+                position: absolute;
+                top: 1rem;
+                left: 1rem;
+                right: 1rem;
+                background: ${type === 'error' ? 'var(--danger-color)' : 'var(--success-color)'};
+                color: white;
+                padding: 0.75rem;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                text-align: center;
+                box-shadow: var(--shadow-lg);
+                z-index: 10;
+                opacity: 0;
+                transform: translateY(-10px);
+                transition: all 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            card.style.position = 'relative';
+            card.appendChild(notification);
+            
+            // Animazione di entrata
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateY(0)';
+            }, 10);
+            
+            // Rimozione automatica
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(-10px)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                    card.classList.remove('feedback-submitted');
+                }, 300);
+            }, 2000);
+        }
+    }
+
+    // Inizializza l'interfaccia di raccomandazione
+    const bookRecommendationUI = new BookRecommendationUI(bookRecommendationSystem);
+
+    // Esponi globalmente per compatibilità
+    window.bookRecommendationSystem = bookRecommendationSystem;
+    window.bookRecommendationUI = bookRecommendationUI;
     
     // ---- Avvio Quiz ----
     window.startQuiz = async () => {
@@ -1982,120 +3426,241 @@ function initApp() {
         
         console.log("📚 Libri disponibili per raccomandazione:", booksForRecommendation.length);
         
-        // Genera le domande del quiz
-        await generateQuizQuestions();
-        
-        // Inizializza il quiz
+        // Mostra messaggio di caricamento
         document.getElementById('quizIntro').style.display = 'none';
+        document.getElementById('quizQuestions').innerHTML = `
+            <div class="loading-quiz">
+                <h3>🤖 L'IA sta preparando il tuo quiz personalizzato...</h3>
+                <p>Sto analizzando la tua biblioteca e creando domande su misura per te.</p>
+                <div style="margin: 2rem 0;">
+                    <div style="width: 100%; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
+                        <div style="width: 0%; height: 100%; background: var(--primary-gradient); animation: loadingBar 3s ease-in-out infinite;"></div>
+                    </div>
+                </div>
+                <p><small>Questo potrebbe richiedere qualche secondo...</small></p>
+            </div>
+            <style>
+                @keyframes loadingBar {
+                    0% { width: 0%; }
+                    50% { width: 70%; }
+                    100% { width: 100%; }
+                }
+            </style>
+        `;
         document.getElementById('quizQuestions').style.display = 'block';
-        document.getElementById('quizNavigation').style.display = 'flex';
         
-        currentQuestionIndex = 0;
-        quizAnswers = {};
-        
-        renderCurrentQuestion();
-        updateProgress();
+        try {
+            // Genera le domande del quiz tramite IA
+            await generateQuizQuestions();
+            
+            // Inizializza il quiz dopo la generazione
+            currentQuestionIndex = 0;
+            quizAnswers = {};
+            
+            document.getElementById('quizNavigation').style.display = 'flex';
+            renderCurrentQuestion();
+            updateProgress();
+            
+        } catch (error) {
+            console.error('❌ Errore nell\'avvio del quiz:', error);
+            document.getElementById('quizQuestions').innerHTML = `
+                <div class="api-error">
+                    <h3>❌ Errore nella generazione del quiz</h3>
+                    <p>Si è verificato un problema durante la creazione del quiz personalizzato.</p>
+                    <p>Riprova tra qualche istante o contatta il supporto se il problema persiste.</p>
+                    <button onclick="showSection('quiz')" class="btn-primary" style="margin-top: 1rem;">
+                        🔄 Riprova
+                    </button>
+                </div>
+            `;
+        }
     };
     
     // ---- Generazione domande quiz ----
     async function generateQuizQuestions() {
-        // Raccogli informazioni dalla libreria per creare domande personalizzate
-        const allAuthorsSet = new Set();
-        const allTagsSet = new Set();
-        const allGenres = new Set();
-        
-        allBooks.forEach(book => {
-            if (book.author) allAuthorsSet.add(book.author);
-            if (book.tags && Array.isArray(book.tags)) {
-                book.tags.forEach(tag => allTagsSet.add(tag));
-            }
-        });
-        
-        const authorsArray = Array.from(allAuthorsSet).slice(0, 8);
-        const tagsArray = Array.from(allTagsSet).slice(0, 10);
-        
-        // Domande predefinite del quiz
-        quizQuestions = [
-            {
-                id: 1,
-                question: "Quale genere letterario preferisci?",
-                type: "single",
-                options: [
-                    "Narrativa contemporanea",
-                    "Fantascienza",
-                    "Fantasy",
-                    "Thriller/Giallo",
-                    "Romanzo storico",
-                    "Biografia/Autobiografia",
-                    "Saggistica",
-                    "Classici della letteratura"
-                ]
-            },
-            {
-                id: 2,
-                question: "Che tipo di protagonista preferisci?",
-                type: "single",
-                options: [
-                    "Eroe coraggioso che affronta grandi sfide",
-                    "Personaggio complesso con difetti umani",
-                    "Detective o investigatore",
-                    "Persona comune in situazioni straordinarie",
-                    "Genio o personaggio intellettuale",
-                    "Antieroe ribelle",
-                    "Personaggio storico reale",
-                    "Non ho preferenze specifiche"
-                ]
-            },
-            {
-                id: 3,
-                question: "Quale atmosfera preferisci nei libri?",
-                type: "single",
-                options: [
-                    "Misteriosa e suspense",
-                    "Romantica e sentimentale",
-                    "Avventurosa ed epica",
-                    "Introspettiva e riflessiva",
-                    "Divertente e leggera",
-                    "Drammatica e intensa",
-                    "Realistica e quotidiana",
-                    "Fantastica e immaginaria"
-                ]
-            },
-            {
-                id: 4,
-                question: "Quanto lungo preferisci che sia un libro?",
-                type: "single",
-                options: [
-                    "Breve (meno di 200 pagine)",
-                    "Medio (200-400 pagine)",
-                    "Lungo (400-600 pagine)",
-                    "Molto lungo (oltre 600 pagine)",
-                    "Non importa la lunghezza"
-                ]
-            }
-        ];
-        
-        // Aggiungi domanda sugli autori se ce ne sono abbastanza
-        if (authorsArray.length >= 4) {
-            quizQuestions.push({
-                id: 5,
-                question: "Tra questi autori presenti nella tua biblioteca, quale preferisci?",
-                type: "single",
-                options: [...authorsArray, "Nessuno di questi", "Non ho preferenze"]
+        try {
+            console.log("🤖 Generazione domande quiz tramite IA...");
+            
+            // Raccogli informazioni dalla libreria per il contesto
+            const libraryInfo = {
+                totalBooks: allBooks.length,
+                authors: [...new Set(allBooks.map(book => book.author).filter(Boolean))].slice(0, 10),
+                tags: [...new Set(allBooks.flatMap(book => book.tags || []))].slice(0, 15),
+                genres: [...new Set(allBooks.flatMap(book => book.tags || []).filter(tag => 
+                    ['fantasy', 'fantascienza', 'thriller', 'giallo', 'romantico', 'storico', 'biografia', 'saggistica', 'classici', 'contemporaneo'].some(genre => 
+                        tag.toLowerCase().includes(genre)
+                    )
+                ))].slice(0, 10),
+                averageYear: allBooks.length > 0 ? Math.round(allBooks.filter(book => book.year).map(book => book.year).reduce((a, b) => a + b, 0) / allBooks.filter(book => book.year).length) || 2020 : 2020,
+                hasRatings: allBooks.some(book => book.rating),
+                mostCommonTags: [...new Set(allBooks.flatMap(book => book.tags || []))].slice(0, 8)
+            };
+            
+            const prompt = `
+Sei un esperto letterario e devi creare un quiz personalizzato per raccomandare libri. 
+Genera ESATTAMENTE 6-8 domande creative e interessanti per capire i gusti letterari dell'utente.
+
+CONTESTO BIBLIOTECA UTENTE:
+- Libri totali: ${libraryInfo.totalBooks}
+- Autori principali: ${libraryInfo.authors.join(', ') || 'Nessuno'}
+- Tag/Generi: ${libraryInfo.tags.join(', ') || 'Nessuno'}
+- Anno medio: ${libraryInfo.averageYear}
+
+REGOLE IMPORTANTI:
+1. Crea domande DIVERSE e CREATIVE (non le solite domande sui generi)
+2. Varia i tipi di domande: alcune a scelta singola, altre a scelta multipla
+3. Includi domande su: atmosfere, emozioni, situazioni di lettura, personaggi, temi, stili narrativi
+4. Se la biblioteca ha molti libri, includi 1-2 domande che fanno riferimento agli autori/tag della biblioteca
+5. Mantieni un tono amichevole e coinvolgente
+
+FORMATO RICHIESTO (JSON valido):
+{
+    "questions": [
+        {
+            "id": 1,
+            "question": "Testo della domanda",
+            "type": "single", // o "multiple"
+            "options": ["Opzione 1", "Opzione 2", "Opzione 3", "Opzione 4", "Opzione 5"]
+        }
+    ]
+}
+
+Genera domande interessanti e originali!`;
+
+            const response = await fetch(GEMINI_API_URL + `?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.8,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 2048,
+                    }
+                })
             });
+
+            if (!response.ok) {
+                throw new Error(`Errore API Gemini: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                throw new Error('Risposta API non valida');
+            }
+
+            const generatedText = data.candidates[0].content.parts[0].text;
+            console.log("🤖 Risposta IA ricevuta:", generatedText);
+
+            // Parsing della risposta JSON
+            const cleanText = generatedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            const quizData = JSON.parse(cleanText);
+
+            if (!quizData.questions || !Array.isArray(quizData.questions)) {
+                throw new Error('Formato risposta non valido');
+            }
+
+            quizQuestions = quizData.questions.map((q, index) => ({
+                id: index + 1,
+                question: q.question,
+                type: q.type || 'single',
+                options: Array.isArray(q.options) ? q.options : []
+            }));
+
+            // Validazione delle domande generate
+            quizQuestions = quizQuestions.filter(q => 
+                q.question && q.options && q.options.length >= 3
+            );
+
+            if (quizQuestions.length < 4) {
+                throw new Error('Troppe poche domande valide generate');
+            }
+
+            console.log(`✅ ${quizQuestions.length} domande quiz generate con successo dall'IA`);
+
+        } catch (error) {
+            console.error('❌ Errore nella generazione domande IA:', error);
+            
+            // Fallback con domande di base se l'IA fallisce
+            console.log("🔄 Utilizzo domande di fallback...");
+            quizQuestions = [
+                {
+                    id: 1,
+                    question: "In quale momento della giornata preferisci leggere?",
+                    type: "single",
+                    options: [
+                        "Al mattino con il caffè",
+                        "Durante la pausa pranzo", 
+                        "Nel pomeriggio rilassante",
+                        "La sera prima di dormire",
+                        "Di notte quando è tutto silenzioso",
+                        "Nel weekend senza fretta"
+                    ]
+                },
+                {
+                    id: 2,
+                    question: "Cosa ti spinge di più a scegliere un libro?",
+                    type: "single",
+                    options: [
+                        "La copertina accattivante",
+                        "Le recensioni positive",
+                        "Il nome dell'autore",
+                        "La trama descritta",
+                        "Un consiglio di amici",
+                        "L'istinto del momento"
+                    ]
+                },
+                {
+                    id: 3,
+                    question: "Quale emozione vorresti provare leggendo?",
+                    type: "single",
+                    options: [
+                        "Suspense e tensione",
+                        "Gioia e divertimento",
+                        "Nostalgia e malinconia",
+                        "Curiosità e scoperta",
+                        "Tranquillità e pace",
+                        "Eccitazione e avventura"
+                    ]
+                },
+                {
+                    id: 4,
+                    question: "Preferisci storie ambientate in:",
+                    type: "single",
+                    options: [
+                        "Mondo contemporaneo reale",
+                        "Passato storico affascinante",
+                        "Futuro fantascientifico",
+                        "Mondi fantasy immaginari",
+                        "Luoghi esotici e lontani",
+                        "Ambientazione non importante"
+                    ]
+                },
+                {
+                    id: 5,
+                    question: "Cosa apprezzi di più in una narrazione?",
+                    type: "single",
+                    options: [
+                        "Dialoghi brillanti e realistici",
+                        "Descrizioni dettagliate e poetiche",
+                        "Azione incalzante e ritmo veloce",
+                        "Sviluppo psicologico dei personaggi",
+                        "Colpi di scena inaspettati",
+                        "Atmosfere evocative e suggestive"
+                    ]
+                }
+            ];
         }
         
-        // Aggiungi domanda sui tag se ce ne sono abbastanza
-        if (tagsArray.length >= 4) {
-            quizQuestions.push({
-                id: 6,
-                question: "Quali temi ti interessano di più? (Puoi sceglierne più di uno)",
-                type: "multiple",
-                options: tagsArray
-            });
-        }
-        
-        console.log("❓ Domande quiz generate:", quizQuestions.length);
+        console.log("❓ Domande quiz finali:", quizQuestions.length);
     }
     
     // ---- Rendering domanda corrente ----
@@ -2402,10 +3967,6 @@ NON aggiungere altro testo oltre al JSON.
             reasons.push(`La trama sembra adatta al tuo stile di lettura`);
         }
         
-        if (book.year && book.year > 2000) {
-            reasons.push(`È un'opera contemporanea che rispecchia i gusti moderni`);
-        }
-        
         if (reasons.length === 0) {
             reasons.push(`Questo libro rappresenta una scelta interessante dalla tua biblioteca`);
         }
@@ -2641,6 +4202,123 @@ NON aggiungere altro testo oltre al JSON.
         console.log("🔄 Quiz resettato");
     };
 
+    // ===== AUTOCOMPLETAMENTO PER TEST IA AVANZATO =====
+
+    // Setup autocompletamento per il campo test (ora dentro initApp per accedere alle funzioni)
+    function setupTestBookTitleAutocomplete() {
+        const testInput = document.getElementById('testBookTitle');
+        const testSuggestions = document.getElementById('testBookTitleSuggestions');
+        
+        if (!testInput || !testSuggestions) {
+            console.warn('⚠️ Elementi autocompletamento test non trovati, riprovo tra 2 secondi...');
+            setTimeout(setupTestBookTitleAutocomplete, 2000);
+            return;
+        }
+        
+        console.log('✅ Setup autocompletamento test iniziato');
+        
+        testInput.addEventListener('input', function() {
+            const value = this.value.toLowerCase().trim();
+            testSuggestions.innerHTML = '';
+            
+            if (value.length < 2) {
+                testSuggestions.style.display = 'none';
+                return;
+            }
+            
+            // Filtra e ordina libri simili usando lo stesso algoritmo della ricerca principale
+            const matchingBooks = allBooks
+                .filter(book => {
+                    if (!book.title) return false;
+                    const similarity = calculateSimilarity(value, book.title.toLowerCase());
+                    return similarity > 0.3 || book.title.toLowerCase().includes(value);
+                })
+                .sort((a, b) => {
+                    const simA = calculateSimilarity(value, a.title.toLowerCase());
+                    const simB = calculateSimilarity(value, b.title.toLowerCase());
+                    return simB - simA;
+                })
+                .slice(0, 8);
+            
+            if (matchingBooks.length === 0) {
+                testSuggestions.style.display = 'none';
+                return;
+            }
+            
+            console.log(`🔍 Trovati ${matchingBooks.length} libri per "${value}"`);
+            
+            // Genera HTML per i suggerimenti con lo stesso stile della ricerca principale
+            matchingBooks.forEach(book => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.style.cssText = `
+                    padding: 0.75rem 1rem;
+                    cursor: pointer;
+                    border-bottom: 1px solid #e5e7eb;
+                    background: white;
+                    transition: background-color 0.2s ease;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                `;
+                div.innerHTML = `
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(book.title)}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">di ${escapeHtml(book.author || 'Autore sconosciuto')}</div>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                        ${book.year || ''}
+                    </div>
+                `;
+                div.onclick = () => selectTestBookSuggestion(book.title, book.id);
+                div.onmouseover = () => div.style.backgroundColor = '#f8fafc';
+                div.onmouseout = () => div.style.backgroundColor = 'white';
+                testSuggestions.appendChild(div);
+            });
+            
+            testSuggestions.style.display = 'block';
+            
+            // Posiziona i suggerimenti
+            testSuggestions.style.cssText += `
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+                z-index: 1000;
+                max-height: 300px;
+                overflow-y: auto;
+                display: block;
+            `;
+        });
+        
+        // Chiudi suggerimenti quando si clicca fuori (identico alla ricerca principale)
+        document.addEventListener('click', function(event) {
+            if (!testInput.contains(event.target) && !testSuggestions.contains(event.target)) {
+                testSuggestions.style.display = 'none';
+            }
+        });
+    }
+
+    // Funzione per selezionare un suggerimento del test
+    window.selectTestBookSuggestion = (title, bookId) => {
+        const testInput = document.getElementById('testBookTitle');
+        const testSuggestions = document.getElementById('testBookTitleSuggestions');
+        
+        if (testInput) {
+            testInput.value = title;
+            testInput.dataset.selectedBookId = bookId;
+            console.log(`✅ Selezionato libro: "${title}" (ID: ${bookId})`);
+        }
+        
+        if (testSuggestions) {
+            testSuggestions.style.display = 'none';
+        }
+    };
+
     // ===== SEZIONE ESPORTAZIONE =====
     
     // ---- Gestione menu esportazione ----
@@ -2839,4 +4517,508 @@ NON aggiungere altro testo oltre al JSON.
             }
         }, 5000);
     }
+
+    // ===== FUNZIONI SEZIONE RACCOMANDAZIONI AVANZATE =====
+
+    // ---- Aggiornamento statistiche sistema ----
+    window.updateRecommendationStats = () => {
+        const stats = bookRecommendationSystem.getStats();
+        
+        // Assicurati che l'autocompletamento sia inizializzato quando si accede alla sezione
+        setTimeout(setupTestBookTitleAutocomplete, 500);
+        
+        // Aggiorna elementi DOM se presenti
+        const feedbackCountEl = document.getElementById('feedbackCount');
+        const viewCountEl = document.getElementById('viewCount');
+        const totalViewsEl = document.getElementById('totalViews');
+        const cacheStatusEl = document.getElementById('cacheStatus');
+        
+        if (feedbackCountEl) feedbackCountEl.textContent = stats.feedbackEntries;
+        if (viewCountEl) viewCountEl.textContent = stats.viewHistory;
+        if (totalViewsEl) totalViewsEl.textContent = stats.totalViews;
+        if (cacheStatusEl) {
+            cacheStatusEl.textContent = stats.cacheSize > 0 ? 'Attiva' : 'Off';
+            cacheStatusEl.style.color = stats.cacheSize > 0 ? 'var(--success-color)' : 'var(--text-muted)';
+        }
+    };
+
+    // ---- Test sistema con libro specifico ----
+    window.testRecommendationSystem = async () => {
+        if (allBooks.length === 0) {
+            alert('📚 Aggiungi prima alcuni libri alla tua biblioteca per testare il sistema!');
+            return;
+        }
+
+        try {
+            // Ottieni il titolo inserito dall'utente
+            const testTitleInput = document.getElementById('testBookTitle');
+            const insertedTitle = testTitleInput.value.trim();
+            
+            let selectedBook = null;
+            
+            // Se c'è un titolo inserito, cerca quel libro specifico
+            if (insertedTitle) {
+                // Prima controlla se c'è un ID selezionato dall'autocompletamento
+                const selectedBookId = testTitleInput.dataset.selectedBookId;
+                if (selectedBookId) {
+                    selectedBook = allBooks.find(book => book.id === selectedBookId);
+                } else {
+                    // Cerca per titolo
+                    selectedBook = allBooks.find(book => 
+                        book.title.toLowerCase().includes(insertedTitle.toLowerCase()) ||
+                        insertedTitle.toLowerCase().includes(book.title.toLowerCase())
+                    );
+                }
+                
+                if (!selectedBook) {
+                    alert(`❌ Libro "${insertedTitle}" non trovato nella tua biblioteca.\n\n💡 Usa l'autocompletamento per selezionare un libro esistente o lascia vuoto per un test casuale.`);
+                    return;
+                }
+            } else {
+                // Se non c'è titolo inserito, seleziona un libro casuale
+                selectedBook = allBooks[Math.floor(Math.random() * allBooks.length)];
+            }
+            
+            const testArea = document.getElementById('testRecommendationsArea');
+            const testTitleSpan = document.querySelector('#testRecommendationsArea span[id="testBookTitle"]');
+            const testResultsEl = document.getElementById('testRecommendationsResults');
+            
+            if (!testArea || !testResultsEl) {
+                console.warn('⚠️ Elementi UI test non trovati');
+                return;
+            }
+
+            // Mostra area test
+            testArea.style.display = 'block';
+            if (testTitleSpan) {
+                testTitleSpan.textContent = selectedBook.title;
+            }
+            
+            // Scroll all'area test
+            setTimeout(() => {
+                testArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+
+            // Genera raccomandazioni
+            await bookRecommendationUI.renderRecommendations(
+                'testRecommendationsResults',
+                selectedBook,
+                allBooks,
+                {
+                    showReasons: true,
+                    showStats: true,
+                    maxRecommendations: 6,
+                    enableAnimations: true,
+                    compact: false
+                }
+            );
+
+            console.log(`✅ Test completato per: "${selectedBook.title}"`);
+
+        } catch (error) {
+            console.error('❌ Errore nel test sistema:', error);
+            alert('❌ Errore durante il test del sistema di raccomandazione');
+        }
+    };
+
+    // ---- Ottimizzazione cache ----
+    window.optimizeRecommendationCache = () => {
+        try {
+            bookRecommendationSystem.invalidateCache();
+            showExportNotification('🚀 Cache ottimizzata con successo!');
+            updateRecommendationStats();
+        } catch (error) {
+            console.error('❌ Errore ottimizzazione cache:', error);
+            showExportNotification('❌ Errore nell\'ottimizzazione cache', 'error');
+        }
+    };
+
+    // ---- Analisi sentimenti feedback ----
+    window.analyzeFeedbackSentiment = () => {
+        const stats = bookRecommendationSystem.getStats();
+        if (stats.feedbackEntries === 0) {
+            alert('📊 Non ci sono ancora feedback da analizzare!');
+            return;
+        }
+
+        const feedbackData = bookRecommendationSystem.exportUserData().feedback;
+        let positives = 0;
+        let negatives = 0;
+        let total = 0;
+
+        for (const [title, rating] of Object.entries(feedbackData)) {
+            total++;
+            if (rating > 0) positives++;
+            else if (rating < 0) negatives++;
+        }
+
+        const positivePercentage = ((positives / total) * 100).toFixed(1);
+        const negativePercentage = ((negatives / total) * 100).toFixed(1);
+
+        alert(`📈 Analisi Sentiment Feedback:\n\n` +
+              `✅ Feedback Positivi: ${positives} (${positivePercentage}%)\n` +
+              `❌ Feedback Negativi: ${negatives} (${negativePercentage}%)\n` +
+              `📊 Neutrali: ${total - positives - negatives} (${(100 - positivePercentage - negativePercentage).toFixed(1)}%)`);
+    };
+};
+
+// Funzione per mostrare i dettagli del libro
+function showBookDetail(book) {
+    if (!book) {
+        alert('❌ Errore: impossibile caricare i dettagli del libro');
+        return;
+    }
+    
+    // Crea modale o sezione dettagli
+    const detailModal = document.createElement('div');
+    detailModal.id = 'bookDetailModal';
+    detailModal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    `;
+    
+    const detailContent = `
+        <div class="book-detail-content" style="
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            margin: 1rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+            animation: slideInScale 0.4s ease-out;
+        ">
+            <button onclick="closeBookDetail()" style="
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                cursor: pointer;
+                color: var(--text-muted);
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">✕</button>
+            
+            <div class="book-detail-header" style="margin-bottom: 1.5rem; padding-right: 2rem;">
+                <h2 style="margin: 0 0 0.5rem 0; color: var(--primary-color); font-size: 1.5rem;">
+                    📖 ${escapeHtml(book.title)}
+                </h2>
+                ${book.author ? `
+                    <h3 style="margin: 0 0 0.5rem 0; color: var(--text-secondary); font-size: 1.2rem; font-weight: 500;">
+                        ✍️ ${escapeHtml(book.author)}
+                    </h3>
+                ` : ''}
+                ${book.year ? `
+                    <p style="margin: 0 0 1rem 0; color: var(--text-muted);">
+                        📅 Anno: ${book.year}
+                    </p>
+                ` : ''}
+            </div>
+            
+            <div class="book-detail-body">
+                ${book.description ? `
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--text-primary); margin: 0 0 0.5rem 0;">📝 Descrizione</h4>
+                        <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">
+                            ${escapeHtml(book.description)}
+                        </p>
+                    </div>
+                ` : ''}
+                
+                ${book.tags && book.tags.length > 0 ? `
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--text-primary); margin: 0 0 0.5rem 0;">🏷️ Tag</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            ${book.tags.map(tag => `
+                                <span style="
+                                    background: var(--primary-gradient);
+                                    color: white;
+                                    padding: 0.25rem 0.75rem;
+                                    border-radius: 15px;
+                                    font-size: 0.85rem;
+                                    font-weight: 500;
+                                ">${escapeHtml(tag)}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${book.pages ? `
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--text-primary); margin: 0 0 0.5rem 0;">📄 Informazioni</h4>
+                        <p style="color: var(--text-secondary); margin: 0;">
+                            Pagine: ${book.pages}
+                        </p>
+                        ${book.publisher ? `<p style="color: var(--text-secondary); margin: 0.25rem 0 0 0;">Editore: ${escapeHtml(book.publisher)}</p>` : ''}
+                        ${book.isbn ? `<p style="color: var(--text-secondary); margin: 0.25rem 0 0 0;">ISBN: ${escapeHtml(book.isbn)}</p>` : ''}
+                    </div>
+                ` : ''}
+                
+                ${book.rating ? `
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--text-primary); margin: 0 0 0.5rem 0;">⭐ Valutazione</h4>
+                        <p style="color: var(--text-secondary); margin: 0;">
+                            ${book.rating}/5 stelle
+                        </p>
+                        ${book.comment ? `<p style="color: var(--text-secondary); margin: 0.5rem 0 0 0; font-style: italic;">"${escapeHtml(book.comment)}"</p>` : ''}
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="book-detail-actions" style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
+                <button onclick="getRecommendationsForBook('${book.id}', '${escapeHtml(book.title)}')" style="
+                    flex: 1;
+                    padding: 0.75rem 1rem;
+                    background: var(--primary-gradient);
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                ">
+                    🎯 Trova Libri Simili
+                </button>
+                ${!allBooks.find(b => b.id === book.id) ? `
+                    <button onclick="addToWishlistFromDetail('${escapeHtml(book.title)}', '${escapeHtml(book.author || '')}', '${escapeHtml(book.description || '')}', '${book.year || ''}')" style="
+                        flex: 1;
+                        padding: 0.75rem 1rem;
+                        background: var(--success-gradient, linear-gradient(135deg, #10b981 0%, #059669 100%));
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    ">
+                        💝 Aggiungi alla Wishlist
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+        
+        <style>
+            @keyframes slideInScale {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(50px);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+        </style>
+    `;
+    
+    detailModal.innerHTML = detailContent;
+    document.body.appendChild(detailModal);
+    
+    // Animazione di entrata
+    setTimeout(() => {
+        detailModal.style.opacity = '1';
+    }, 10);
+    
+    // Chiudi cliccando fuori
+    detailModal.addEventListener('click', (e) => {
+        if (e.target === detailModal) {
+            closeBookDetail();
+        }
+    });
 }
+
+// Funzione per chiudere i dettagli del libro
+window.closeBookDetail = () => {
+    const modal = document.getElementById('bookDetailModal');
+    if (modal) {
+        modal.style.opacity = '0';
+        setTimeout(() => {
+            if (modal.parentElement) {
+                modal.remove();
+            }
+        }, 300);
+    }
+};
+
+// Funzione per ottenere raccomandazioni da modale dettagli
+window.getRecommendationsForBook = async (bookId, bookTitle) => {
+    closeBookDetail();
+    
+    // Trova il libro
+    const book = allBooks.find(b => b.id === bookId);
+    if (!book) {
+        alert('❌ Libro non trovato per generare raccomandazioni');
+        return;
+    }
+    
+    // Vai alla sezione raccomandazioni e genera
+    showSection('recommendations');
+    
+    setTimeout(async () => {
+        try {
+            await bookRecommendationUI.renderRecommendations(
+                'recommendations-container',
+                book,
+                allBooks,
+                {
+                    showReasons: true,
+                    showStats: true,
+                    maxRecommendations: 8,
+                    enableAnimations: true
+                }
+            );
+            
+            // Scorri alla sezione
+            document.getElementById('recommendationsSection').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+            
+        } catch (error) {
+            console.error('❌ Errore generazione raccomandazioni:', error);
+            alert('❌ Errore nella generazione delle raccomandazioni');
+        }
+    }, 500);
+};
+
+// Funzione per aggiungere alla wishlist da modale dettagli
+window.addToWishlistFromDetail = async (title, author, description, year) => {
+    try {
+        // Controlla duplicati
+        const isDuplicate = allWishlistItems.some(item => 
+            item.title.toLowerCase().trim() === title.toLowerCase().trim() && 
+            item.author.toLowerCase().trim() === author.toLowerCase().trim()
+        );
+        
+        if (isDuplicate) {
+            alert('📚 Questo libro è già nella tua wishlist!');
+            return;
+        }
+        
+        const wishlistData = {
+            title: title,
+            author: author,
+            description: description,
+            year: year,
+            priority: 2,
+            tags: [],
+            notes: `Aggiunto da raccomandazioni - ${new Date().toLocaleDateString()}`,
+            created_at: new Date(),
+            updated_at: new Date()
+        };
+        
+        if (user) {
+            const wishlistRef = doc(db, 'users', user.uid, 'wishlist', Date.now().toString());
+            await setDoc(wishlistRef, wishlistData);
+        }
+        
+        alert('✅ Libro aggiunto alla wishlist!');
+        closeBookDetail();
+        
+    } catch (error) {
+        console.error('❌ Errore aggiunta wishlist:', error);
+        alert('❌ Errore nell\'aggiungere il libro alla wishlist');
+    }
+};
+
+// ===== FUNZIONI GLOBALI (fuori da initApp) =====
+
+// ---- Aggiorna datalist per form inserimento ----
+function updateFormDataLists() {
+    console.log("🔍 Aggiornamento datalist form - Titoli:", allTitles.size, "Autori:", allAuthors.size);
+    
+    // Aggiorna datalist titoli
+    const titleOptions = document.getElementById('titleOptions');
+    if (titleOptions) {
+        titleOptions.innerHTML = '';
+        const titlesArray = Array.from(allTitles).sort();
+        console.log("📖 Titoli da aggiungere al datalist:", titlesArray);
+        titlesArray.forEach(title => {
+            const option = document.createElement('option');
+            option.value = title;
+            titleOptions.appendChild(option);
+        });
+        console.log("✅ Datalist titoli aggiornato con", titlesArray.length, "opzioni");
+    } else {
+        console.warn("⚠️ Elemento titleOptions non trovato");
+    }
+
+    // Aggiorna datalist autori
+    const authorOptions = document.getElementById('authorOptions');
+    if (authorOptions) {
+        authorOptions.innerHTML = '';
+        const authorsArray = Array.from(allAuthors).sort();
+        console.log("✍️ Autori da aggiungere al datalist:", authorsArray);
+        authorsArray.forEach(author => {
+            const option = document.createElement('option');
+            option.value = author;
+            authorOptions.appendChild(option);
+        });
+        console.log("✅ Datalist autori aggiornato con", authorsArray.length, "opzioni");
+    } else {
+        console.warn("⚠️ Elemento authorOptions non trovato");
+    }
+}
+
+// ---- Funzione di test per datalist (per debug) ----
+window.testDataLists = () => {
+    console.log("🧪 Test manuale dei datalist");
+    console.log("Titoli attuali:", Array.from(allTitles));
+    console.log("Autori attuali:", Array.from(allAuthors));
+    
+    // Verifica che gli elementi esistano
+    const titleOptions = document.getElementById('titleOptions');
+    const authorOptions = document.getElementById('authorOptions');
+    const titleInput = document.getElementById('bookTitle');
+    const authorInput = document.getElementById('bookAuthor');
+    
+    console.log("Elemento titleOptions:", titleOptions);
+    console.log("Elemento authorOptions:", authorOptions);
+    console.log("Elemento bookTitle input:", titleInput);
+    console.log("Elemento bookAuthor input:", authorInput);
+    
+    if (titleOptions) {
+        console.log("Opzioni nel datalist titoli:", titleOptions.children.length);
+        // Aggiorna i datalist manualmente
+        titleOptions.innerHTML = '';
+        const titlesArray = Array.from(allTitles).sort();
+        console.log("📖 Titoli da aggiungere al datalist:", titlesArray);
+        titlesArray.forEach(title => {
+            const option = document.createElement('option');
+            option.value = title;
+            titleOptions.appendChild(option);
+        });
+        console.log("✅ Datalist titoli aggiornato con", titlesArray.length, "opzioni");
+    }
+    
+    if (authorOptions) {
+        console.log("Opzioni nel datalist autori:", authorOptions.children.length);
+        // Aggiorna i datalist manualmente
+        authorOptions.innerHTML = '';
+        const authorsArray = Array.from(allAuthors).sort();
+        console.log("✍️ Autori da aggiungere al datalist:", authorsArray);
+        authorsArray.forEach(author => {
+            const option = document.createElement('option');
+            option.value = author;
+            authorOptions.appendChild(option);
+        });
+        console.log("✅ Datalist autori aggiornato con", authorsArray.length, "opzioni");
+    }
+};

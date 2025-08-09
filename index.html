@@ -1372,6 +1372,275 @@
                 transform: translateX(0);
             }
         }
+
+        /* === STILI TI POTREBBE PIACERE ANCHE === */
+        .book-recommendations {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .recommendation-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(247,250,252,0.9) 100%);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recommendation-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .recommendation-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .recommendation-loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .recommendation-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--danger-color);
+            text-align: center;
+            padding: 2rem;
+            border-radius: 12px;
+        }
+
+        .recommendations-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .recommendations-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+        }
+
+        .recommendations-header p {
+            margin: 0.5rem 0 0 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .recommendation-reasons {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .recommendation-reasons ul {
+            margin: 0;
+            padding-left: 1.2rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .recommendation-reasons li {
+            margin-bottom: 0.25rem;
+        }
+
+        .feedback-buttons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .feedback-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid;
+            background: transparent;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feedback-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .feedback-btn.like-btn {
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .feedback-btn.like-btn:hover,
+        .feedback-btn.like-btn.feedback-given {
+            background: #10b981;
+            color: white;
+        }
+
+        .feedback-btn.neutral-btn {
+            border-color: #6b7280;
+            color: #6b7280;
+        }
+
+        .feedback-btn.neutral-btn:hover,
+        .feedback-btn.neutral-btn.feedback-given {
+            background: #6b7280;
+            color: white;
+        }
+
+        .feedback-btn.dislike-btn {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .feedback-btn.dislike-btn:hover,
+        .feedback-btn.dislike-btn.feedback-given {
+            background: #ef4444;
+            color: white;
+        }
+
+        .feedback-notification {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            right: 1rem;
+            background: var(--success-color);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            z-index: 10;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .feedback-notification.error {
+            background: var(--danger-color);
+        }
+
+        .feedback-submitted {
+            position: relative;
+        }
+
+        .book-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .no-recommendations {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .system-stats {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .system-stats h4 {
+            margin: 0 0 1rem 0;
+            color: var(--primary-color);
+        }
+
+        .system-stats div {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* Evidenziazione parole comuni */
+        mark {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            padding: 0.1rem 0.25rem;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        /* Animazioni per le notificazioni */
+        @keyframes slideOutRight {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+        }
+
+        /* Responsive per raccomandazioni */
+        @media (max-width: 768px) {
+            .recommendation-card {
+                padding: 1rem;
+            }
+
+            .feedback-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .feedback-btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .book-stats {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
+
+        /* Stili per test manuale */
+        #testBookTitle {
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 300px;
+            margin: 10px;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Hover effects per suggerimenti test */
+        .suggestion-item:hover {
+            background-color: var(--hover-bg, #f8fafc) !important;
+        }
     </style>
 </head>
 <body>
@@ -1386,6 +1655,7 @@
             <button onclick="showSection('books')" id="booksTabBtn" class="nav-btn active">📚 I Miei Libri</button>
             <button onclick="showSection('wishlist')" id="wishlistTabBtn" class="nav-btn">💝 Lista Desideri</button>
             <button onclick="showSection('quiz')" id="quizTabBtn" class="nav-btn">🧠 Quiz Libri</button>
+            <button onclick="showSection('recommendations')" id="recommendationsTabBtn" class="nav-btn">✨ Ti potrebbe piacere anche</button>
         </div>
 
         <!-- Sezione Libri -->
@@ -1506,11 +1776,13 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="bookTitle">Titolo:</label>
-                            <input type="text" id="bookTitle" required>
+                            <input type="text" id="bookTitle" list="titleOptions" required>
+                            <datalist id="titleOptions"></datalist>
                         </div>
                         <div class="form-group">
                             <label for="bookAuthor">Autore:</label>
-                            <input type="text" id="bookAuthor" required>
+                            <input type="text" id="bookAuthor" list="authorOptions" required>
+                            <datalist id="authorOptions"></datalist>
                         </div>
                     </div>
                     <div class="form-row">
@@ -1886,6 +2158,221 @@
             </div>
         </div>
         <!-- Fine Sezione Quiz -->
+
+        <!-- Sezione Ti potrebbe piacere anche - Versione Avanzata -->
+        <div id="recommendationsSection" class="section-content" style="display: none;">
+            <div class="recommendations-advanced-container">
+                <header style="text-align: center; margin-bottom: 2rem;">
+                    <h2>✨ Ti potrebbe piacere anche - Versione Avanzata</h2>
+                    <p style="color: var(--text-secondary); font-size: 1.1rem;">
+                        Analizza i tuoi libri per trovarti le migliori raccomandazioni personalizzate
+                    </p>
+                </header>
+
+                <!-- Configurazione Raccomandazioni -->
+                <div class="recommendation-settings" style="
+                    background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(247,250,252,0.9) 100%);
+                    border-radius: 16px;
+                    padding: 2rem;
+                    margin-bottom: 2rem;
+                    box-shadow: var(--shadow-md);
+                ">
+                    <h3 style="margin-top: 0; color: var(--primary-color);">⚙️ Personalizza le Raccomandazioni</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                        <!-- Preferenze Analisi -->
+                        <div>
+                            <h4 style="color: var(--text-primary); margin-bottom: 1rem;">🔍 Campi di Analisi</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="useTitle" checked style="cursor: pointer;">
+                                    <span style="font-weight: 500;">📖 Titolo (peso alto)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="useAuthor" checked style="cursor: pointer;">
+                                    <span style="font-weight: 500;">✍️ Autore (peso alto)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="useDescription" checked style="cursor: pointer;">
+                                    <span style="font-weight: 500;">📝 Trama/Descrizione</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="useTags" checked style="cursor: pointer;">
+                                    <span style="font-weight: 500;">🏷️ Tag/Generi</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="useGenre" checked style="cursor: pointer;">
+                                    <span style="font-weight: 500;">🎭 Genere Principale</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Modalità Raccomandazione -->
+                        <div>
+                            <h4 style="color: var(--text-primary); margin-bottom: 1rem;">🎯 Modalità Algoritmo</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
+                                    <input type="radio" name="recommendationMode" value="hybrid" checked style="cursor: pointer; margin-top: 0.25rem;">
+                                    <div>
+                                        <div style="font-weight: 600; color: var(--primary-color);">🔮 Ibrido (Consigliato)</div>
+                                        <div style="font-size: 0.85rem; color: var(--text-muted);">Combina analisi del contenuto e stile testuale</div>
+                                    </div>
+                                </label>
+                                <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
+                                    <input type="radio" name="recommendationMode" value="style" style="cursor: pointer; margin-top: 0.25rem;">
+                                    <div>
+                                        <div style="font-weight: 600; color: var(--accent-color);">📊 Stile Testuale</div>
+                                        <div style="font-size: 0.85rem; color: var(--text-muted);">Analisi TF-IDF avanzata delle parole</div>
+                                    </div>
+                                </label>
+                                <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
+                                    <input type="radio" name="recommendationMode" value="content" style="cursor: pointer; margin-top: 0.25rem;">
+                                    <div>
+                                        <div style="font-weight: 600; color: var(--success-color);">🏷️ Contenuto</div>
+                                        <div style="font-size: 0.85rem; color: var(--text-muted);">Basato su generi, autori e metadati</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <div style="margin-bottom: 1rem; position: relative; display: inline-block;">
+                            <input type="text" id="testBookTitle" placeholder="Inserisci il titolo del libro..." style="
+                                width: 100%;
+                                max-width: 400px;
+                                padding: 0.75rem 1rem;
+                                font-size: 1rem;
+                                border: 2px solid var(--border-color);
+                                border-radius: 25px;
+                                background: white;
+                                margin-bottom: 1rem;
+                                transition: all 0.3s ease;
+                            ">
+                            <div id="testBookTitleSuggestions" class="suggestions-dropdown" style="display: none;"></div>
+                        </div>
+                        <button onclick="testRecommendationSystem()" class="btn-primary" style="
+                            background: var(--primary-gradient);
+                            padding: 0.75rem 2rem;
+                            font-size: 1rem;
+                            font-weight: 600;
+                            border-radius: 25px;
+                        ">
+                            🧪 Testa Sistema con Libro Specifico
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Statistiche Sistema -->
+                <div class="system-stats" id="mainSystemStats" style="
+                    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    margin-bottom: 2rem;
+                    border: 1px solid rgba(102, 126, 234, 0.2);
+                ">
+                    <h4 style="margin: 0 0 1rem 0; color: var(--primary-color);">📊 Statistiche Sistema</h4>
+                    <div id="systemStatsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.95rem;">
+                        <div style="text-align: center; padding: 1rem; background: rgba(255,255,255,0.7); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 1.5rem;" id="feedbackCount">0</div>
+                            <div style="color: var(--text-muted);">Feedback Raccolti</div>
+                        </div>
+                        <div style="text-align: center; padding: 1rem; background: rgba(255,255,255,0.7); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 1.5rem;" id="viewCount">0</div>
+                            <div style="color: var(--text-muted);">Libri Analizzati</div>
+                        </div>
+                        <div style="text-align: center; padding: 1rem; background: rgba(255,255,255,0.7); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 1.5rem;" id="totalViews">0</div>
+                            <div style="color: var(--text-muted);">Visualizzazioni Totali</div>
+                        </div>
+                        <div style="text-align: center; padding: 1rem; background: rgba(255,255,255,0.7); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 1.5rem;" id="cacheStatus">Off</div>
+                            <div style="color: var(--text-muted);">Cache Sistema</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gestione Dati -->
+                <div style="
+                    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,245,251,0.8) 100%);
+                    border-radius: 16px;
+                    padding: 2rem;
+                    margin-bottom: 2rem;
+                    box-shadow: var(--shadow-sm);
+                ">
+                    <h3 style="margin-top: 0; color: var(--text-primary);">💾 Gestione Dati Utente</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                        I tuoi feedback e preferenze vengono salvati localmente per migliorare le raccomandazioni nel tempo.
+                    </p>
+                    
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                        <button onclick="exportRecommendationData()" class="btn-secondary" style="
+                            padding: 0.6rem 1.25rem;
+                            border-radius: 20px;
+                            font-weight: 600;
+                        ">
+                            📥 Esporta Dati
+                        </button>
+                        <button onclick="importRecommendationData()" class="btn-secondary" style="
+                            padding: 0.6rem 1.25rem;
+                            border-radius: 20px;
+                            font-weight: 600;
+                        ">
+                            📤 Importa Dati
+                        </button>
+                        <button onclick="resetRecommendationSystem()" class="btn-danger" style="
+                            padding: 0.6rem 1.25rem;
+                            border-radius: 20px;
+                            font-weight: 600;
+                        ">
+                            🔄 Reset Sistema
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Area Test Raccomandazioni -->
+                <div id="testRecommendationsArea" style="display: none;">
+                    <h3 style="color: var(--primary-color); text-align: center; margin-bottom: 1.5rem;">
+                        🔬 Test Raccomandazioni per "<span id="testBookTitle"></span>"
+                    </h3>
+                    <div id="testRecommendationsResults">
+                        <!-- Le raccomandazioni di test appariranno qui -->
+                    </div>
+                </div>
+
+                <!-- Info Algoritmo -->
+                <div style="
+                    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+                    border-radius: 16px;
+                    padding: 2rem;
+                    border: 1px solid rgba(102, 126, 234, 0.1);
+                    margin-top: 2rem;
+                ">
+                    <h3 style="margin-top: 0; color: var(--primary-color);">🤖 Come Funziona l'IA</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+                        <div>
+                            <h4 style="color: var(--accent-color); margin-bottom: 0.5rem;">📊 TF-IDF</h4>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+                                Analizza la frequenza delle parole nei testi per calcolare la similarità semantica tra libri.
+                            </p>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--accent-color); margin-bottom: 0.5rem;">🧠 Machine Learning</h4>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+                                Il sistema apprende dai tuoi feedback per migliorare progressivamente i suggerimenti.
+                            </p>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--accent-color); margin-bottom: 0.5rem;">⚡ Cache Intelligente</h4>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+                                Ottimizza le performance memorizzando i calcoli per velocizzare le raccomandazioni.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Fine Sezione Raccomandazioni -->
     </div>
     
     <!-- Firebase SDK moderno -->
