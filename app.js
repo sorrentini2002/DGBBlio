@@ -22,88 +22,6 @@ let allAuthors = new Set();
 let allTitles = new Set();
 let allTags = new Set();
 
-// === FUNZIONE DI INIZIALIZZAZIONE PREFERENZE ===
-async function initializeUserPreferences() {
-    if (!window.bookRecommendationSystem) {
-        console.log('⚠️ Sistema di raccomandazioni non ancora disponibile, attendo...');
-        return;
-    }
-    
-    try {
-        console.log('🔄 Caricamento preferenze utente da Firebase...');
-        
-        // Prova a caricare da Firebase
-        await window.bookRecommendationSystem.loadUserDataFromFirebase();
-        
-        // Se non ci sono dati su Firebase, carica da localStorage come fallback
-        const stats = window.bookRecommendationSystem.getStats();
-        if (stats.feedbackEntries === 0 && stats.viewHistory === 0) {
-            console.log('📱 Caricamento preferenze da localStorage come fallback...');
-            window.bookRecommendationSystem.loadUserDataFromStorage();
-        }
-        
-        // Aggiorna le statistiche nelle sezioni se le funzioni sono disponibili
-        setTimeout(() => {
-            if (typeof window.updateRecommendationStats === 'function') {
-                window.updateRecommendationStats();
-            }
-            if (typeof window.updateUserStats === 'function') {
-                window.updateUserStats();
-            }
-        }, 1000);
-        
-        console.log('✅ Preferenze utente inizializzate');
-        console.log('📊 Stats:', stats);
-        
-    } catch (error) {
-        console.error('❌ Errore nel caricamento preferenze:', error);
-        // Fallback a localStorage
-        if (window.bookRecommendationSystem) {
-            window.bookRecommendationSystem.loadUserDataFromStorage();
-        }
-    }
-}
-
-// === FUNZIONE DI SINCRONIZZAZIONE AUTOMATICA ===
-function setupAutoSync() {
-    if (!window.bookRecommendationSystem) return;
-    
-    console.log('🔄 Configurazione sincronizzazione automatica...');
-    
-    // Sincronizza ogni 5 minuti se l'utente è attivo
-    setInterval(async () => {
-        if (document.visibilityState === 'visible' && window.bookRecommendationSystem) {
-            try {
-                await window.bookRecommendationSystem.syncWithFirebase();
-                console.log('🔄 Sincronizzazione automatica completata');
-            } catch (error) {
-                console.warn('⚠️ Sincronizzazione automatica fallita:', error);
-            }
-        }
-    }, 5 * 60 * 1000); // 5 minuti
-    
-    // Sincronizza quando la pagina torna visibile
-    document.addEventListener('visibilitychange', async () => {
-        if (document.visibilityState === 'visible' && window.bookRecommendationSystem) {
-            try {
-                console.log('👁️ Pagina tornata visibile, sincronizzazione...');
-                await window.bookRecommendationSystem.loadUserDataFromFirebase();
-                
-                // Aggiorna UI se siamo nella sezione preferenze
-                if (document.getElementById('preferencesSection')?.style.display !== 'none') {
-                    if (typeof window.updateUserStats === 'function') {
-                        window.updateUserStats();
-                    }
-                }
-            } catch (error) {
-                console.warn('⚠️ Sincronizzazione al focus fallita:', error);
-            }
-        }
-    });
-    
-    console.log('✅ Sincronizzazione automatica configurata');
-}
-
 function initApp() {
     console.log("🚀 Inizializzazione applicazione...");
     
@@ -2485,9 +2403,13 @@ function initApp() {
             // ID utente per Firebase (per ora usiamo un ID fisso, in futuro si può integrare con autenticazione)
             this.userId = this.generateUserId();
             
+            // Listener per aggiornamenti in tempo reale
+            this.preferencesListener = null;
+            
             // Inizializza dai dati (prima localStorage come fallback, poi Firebase)
             this.loadUserDataFromStorage();
             this.loadUserDataFromFirebase();
+            this.startPreferencesListener();
         }
         
         // Genera un ID utente univoco (persistente nel localStorage)
@@ -3026,6 +2948,110 @@ function initApp() {
                 console.warn('⚠️ Impossibile caricare da Firebase:', error);
             }
         }
+        
+        // === LISTENER IN TEMPO REALE PER PREFERENZE ===
+        startPreferencesListener() {
+            if (!this.db || !this.firebaseModules) {
+                console.warn('⚠️ Firebase non disponibile, listener delle preferenze disabilitato');
+                return;
+            }
+            
+            try {
+                const { doc, onSnapshot } = this.firebaseModules;
+                
+                const userDocRef = doc(this.db, 'userPreferences', this.userId);
+                
+                // Avvia il listener per aggiornamenti in tempo reale
+                this.preferencesListener = onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const userData = docSnap.data();
+                        let hasChanges = false;
+                        
+                        console.log('🔄 Aggiornamento preferenze in tempo reale ricevuto');
+                        
+                        // Aggiorna feedback se cambiati
+                        if (userData.feedback) {
+                            const newFeedback = new Map(Object.entries(userData.feedback));
+                            if (!this.mapsEqual(this.userFeedback, newFeedback)) {
+                                this.userFeedback = newFeedback;
+                                hasChanges = true;
+                                console.log('📊 Feedback aggiornati in tempo reale');
+                            }
+                        }
+                        
+                        // Aggiorna cronologia visualizzazioni se cambiata
+                        if (userData.viewHistory) {
+                            const newHistory = new Map(Object.entries(userData.viewHistory));
+                            if (!this.mapsEqual(this.viewHistory, newHistory)) {
+                                this.viewHistory = newHistory;
+                                hasChanges = true;
+                                console.log('👁️ Cronologia visualizzazioni aggiornata in tempo reale');
+                            }
+                        }
+                        
+                        // Aggiorna preferenze se cambiate
+                        if (userData.preferences) {
+                            const newPreferences = new Map(Object.entries(userData.preferences));
+                            if (!this.mapsEqual(this.userPreferences, newPreferences)) {
+                                this.userPreferences = newPreferences;
+                                hasChanges = true;
+                                console.log('⚙️ Preferenze aggiornate in tempo reale');
+                                
+                                // Se siamo nella sezione preferenze, aggiorna l'UI
+                                const preferencesSection = document.getElementById('preferencesSection');
+                                if (preferencesSection && preferencesSection.style.display !== 'none') {
+                                    if (window.loadCurrentPreferences) {
+                                        window.loadCurrentPreferences();
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (hasChanges) {
+                            // Salva nel localStorage come cache
+                            this.saveUserDataToStorage();
+                            
+                            // Aggiorna statistiche se siamo nella sezione preferenze
+                            const preferencesSection = document.getElementById('preferencesSection');
+                            if (preferencesSection && preferencesSection.style.display !== 'none') {
+                                if (window.updateUserStats) {
+                                    window.updateUserStats();
+                                }
+                            }
+                            
+                            console.log('✅ Preferenze sincronizzate con successo');
+                        }
+                    }
+                }, (error) => {
+                    console.error('❌ Errore nel listener delle preferenze:', error);
+                });
+                
+                console.log('🎧 Listener preferenze avviato per utente:', this.userId);
+            } catch (error) {
+                console.error('❌ Impossibile avviare listener preferenze:', error);
+            }
+        }
+        
+        // Utility per confrontare due Map
+        mapsEqual(map1, map2) {
+            if (map1.size !== map2.size) return false;
+            
+            for (let [key, value] of map1) {
+                if (!map2.has(key) || map2.get(key) !== value) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        // Ferma il listener delle preferenze
+        stopPreferencesListener() {
+            if (this.preferencesListener) {
+                this.preferencesListener();
+                this.preferencesListener = null;
+                console.log('🔇 Listener preferenze fermato');
+            }
+        }
 
         saveUserDataToStorage() {
             try {
@@ -3255,6 +3281,9 @@ function initApp() {
 
         // === RESET DATI ===
         async resetUserData() {
+            // Ferma il listener temporaneamente
+            this.stopPreferencesListener();
+            
             this.userFeedback.clear();
             this.viewHistory.clear();
             this.userPreferences.clear();
@@ -3274,6 +3303,10 @@ function initApp() {
             
             // Rimuovi da localStorage
             localStorage.removeItem('bookRecommendationData');
+            
+            // Riavvia il listener
+            this.startPreferencesListener();
+            
             console.log('🔄 Dati utente resettati completamente');
         }
         
@@ -3288,6 +3321,21 @@ function initApp() {
 
     // Inizializza il sistema di raccomandazione
     const bookRecommendationSystem = new BookRecommendationSystem();
+    
+    // Carica immediatamente i dati utente da Firebase all'avvio
+    console.log("🔄 Caricamento iniziale preferenze utente da Firebase...");
+    bookRecommendationSystem.loadUserDataFromFirebase().then(() => {
+        console.log("✅ Preferenze utente caricate all'avvio");
+        
+        // Aggiorna le statistiche se siamo nella sezione preferenze
+        const preferencesSection = document.getElementById('preferencesSection');
+        if (preferencesSection && preferencesSection.style.display !== 'none') {
+            updateUserStats();
+            loadCurrentPreferences();
+        }
+    }).catch(error => {
+        console.warn("⚠️ Errore nel caricamento iniziale delle preferenze:", error);
+    });
 
     // === INTERFACCIA SISTEMA DI RACCOMANDAZIONE ===
     class BookRecommendationUI {
@@ -3779,12 +3827,6 @@ function initApp() {
     // Esponi globalmente per compatibilità
     window.bookRecommendationSystem = bookRecommendationSystem;
     window.bookRecommendationUI = bookRecommendationUI;
-    
-    // Inizializza le preferenze utente e la sincronizzazione automatica
-    setTimeout(async () => {
-        await initializeUserPreferences();
-        setupAutoSync();
-    }, 1000);
     
     // ---- Avvio Quiz ----
     window.startQuiz = async () => {
@@ -5403,19 +5445,6 @@ window.testDataLists = () => {
 window.initPreferencesSection = async () => {
     console.log('🔧 Inizializzazione sezione preferenze...');
     
-    if (!bookRecommendationSystem) {
-        console.warn('⚠️ Sistema di raccomandazioni non disponibile');
-        return;
-    }
-    
-    // Forza il caricamento delle preferenze da Firebase
-    try {
-        await bookRecommendationSystem.loadUserDataFromFirebase();
-        console.log('✅ Preferenze caricate da Firebase durante inizializzazione sezione');
-    } catch (error) {
-        console.warn('⚠️ Impossibile caricare preferenze da Firebase:', error);
-    }
-    
     // Aggiorna statistiche utente
     updateUserStats();
     
@@ -5639,25 +5668,13 @@ window.syncWithFirebase = async () => {
     if (!bookRecommendationSystem) return;
     
     try {
-        console.log('🔄 Inizio sincronizzazione bidirezionale...');
+        await bookRecommendationSystem.syncWithFirebase();
         
-        // Prima carica i dati più recenti da Firebase
-        await bookRecommendationSystem.loadUserDataFromFirebase();
-        
-        // Poi salva eventuali modifiche locali
-        await bookRecommendationSystem.saveUserDataToFirebase();
-        
-        // Aggiorna tutte le sezioni dell'interfaccia
-        updateUserStats();
-        if (typeof updateRecommendationStats === 'function') {
-            updateRecommendationStats();
-        }
-        if (typeof loadCurrentPreferences === 'function') {
-            loadCurrentPreferences();
-        }
-        
+        // Mostra notifica di successo
         showNotification('✅ Sincronizzazione completata con successo!', 'success');
-        console.log('🔄 Sincronizzazione bidirezionale completata');
+        
+        // Aggiorna la sezione
+        updateUserStats();
         
     } catch (error) {
         console.error('Errore nella sincronizzazione:', error);
@@ -5805,29 +5822,4 @@ function showNotification(message, type = 'info') {
             }
         }, 300);
     }, 3000);
-}
-
-// === FUNZIONE DI DEBUG ===
-window.debugPreferencesSync = () => {
-    if (!bookRecommendationSystem) {
-        console.log('❌ Sistema di raccomandazioni non disponibile');
-        return;
-    }
-    
-    console.log('🔍 DEBUG - Stato sincronizzazione preferenze:');
-    console.log('📊 Statistiche:', bookRecommendationSystem.getStats());
-    console.log('👤 ID Utente:', bookRecommendationSystem.userId);
-    console.log('📝 Feedback:', Object.fromEntries(bookRecommendationSystem.userFeedback || new Map()));
-    console.log('👁️ Visualizzazioni:', Object.fromEntries(bookRecommendationSystem.viewHistory || new Map()));
-    console.log('⚙️ Preferenze:', Object.fromEntries(bookRecommendationSystem.userPreferences || new Map()));
-    console.log('🔥 Firebase disponibile:', !!(window.firebaseDb && window.firebaseModules));
-    
-    // Test rapido Firebase
-    if (window.firebaseDb && window.firebaseModules) {
-        const { doc } = window.firebaseModules;
-        const userDocRef = doc(window.firebaseDb, 'userPreferences', bookRecommendationSystem.userId);
-        console.log('📍 Riferimento documento Firebase:', userDocRef);
-    }
-    
-    showNotification('🔍 Debug info stampata in console', 'info');
 };

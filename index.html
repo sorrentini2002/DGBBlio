@@ -2374,6 +2374,146 @@
             </div>
         </div>
         <!-- Fine Sezione Raccomandazioni -->
+        
+        <!-- Sezione Preferenze Utente -->
+        <div id="preferencesSection" class="section-content" style="display: none;">
+            <div style="margin-bottom: 2rem;">
+                <h2 style="color: var(--primary-color); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    ⚙️ Gestione Preferenze Utente
+                </h2>
+                <p style="color: var(--text-secondary); margin: 0;">
+                    Personalizza il sistema di raccomandazioni e gestisci i tuoi dati
+                </p>
+                <div id="userIdDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;"></div>
+            </div>
+            
+            <!-- Statistiche Utente -->
+            <div style="margin-bottom: 2rem;">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    📊 Le Tue Statistiche
+                </h3>
+                <div id="userStatsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                    <!-- Le statistiche vengono generate dinamicamente -->
+                </div>
+            </div>
+            
+            <!-- Analisi Preferenze -->
+            <div style="margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        🔍 Analisi delle Tue Preferenze
+                    </h3>
+                    <button onclick="analyzeUserPreferences()" class="btn-primary" style="padding: 0.5rem 1rem;">
+                        Aggiorna Analisi
+                    </button>
+                </div>
+                <div id="preferenceAnalysis" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-md);">
+                    <p style="color: var(--text-muted); text-align: center; margin: 0;">
+                        Clicca "Aggiorna Analisi" per vedere i tuoi gusti di lettura personalizzati
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Impostazioni Sistema -->
+            <div style="margin-bottom: 2rem;">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    🎛️ Impostazioni Sistema
+                </h3>
+                <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-md);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                        <!-- Modalità Raccomandazione -->
+                        <div>
+                            <label for="recommendationMode" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">
+                                🎯 Modalità Raccomandazione
+                            </label>
+                            <select id="recommendationMode" onchange="setRecommendationMode(this.value)" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 8px; background: white;">
+                                <option value="hybrid">🔀 Ibrida (consigliata)</option>
+                                <option value="style">📝 Basata su Stile</option>
+                                <option value="content">📚 Basata su Contenuto</option>
+                            </select>
+                            <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
+                                Determina come vengono calcolate le raccomandazioni
+                            </small>
+                        </div>
+                        
+                        <!-- Numero Raccomandazioni -->
+                        <div>
+                            <label for="recommendationCount" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">
+                                🔢 Numero Raccomandazioni: <span id="recommendationCountDisplay">8</span>
+                            </label>
+                            <input type="range" id="recommendationCount" min="3" max="20" value="8" 
+                                   onchange="setRecommendationCount(this.value)" 
+                                   style="width: 100%; margin-bottom: 0.5rem;">
+                            <small style="color: var(--text-muted); display: block;">
+                                Quanti libri suggerire per volta
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gestione Dati -->
+            <div style="margin-bottom: 2rem;">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    💾 Gestione Dati
+                </h3>
+                <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-md);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <button onclick="syncWithFirebase()" class="btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            🔄 Sincronizza con Cloud
+                        </button>
+                        <button onclick="exportUserPreferences()" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            📤 Esporta Preferenze
+                        </button>
+                        <button onclick="importUserPreferences()" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            📥 Importa Preferenze
+                        </button>
+                        <button onclick="resetAllPreferences()" class="btn-danger" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            🗑️ Reset Completo
+                        </button>
+                    </div>
+                    
+                    <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary-color); padding: 1rem; border-radius: 0 8px 8px 0;">
+                        <h4 style="color: var(--primary-color); margin: 0 0 0.5rem 0; font-size: 0.9rem;">
+                            ℹ️ Informazioni sui Dati
+                        </h4>
+                        <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                            <li>I tuoi dati sono salvati automaticamente su Firebase</li>
+                            <li>Una copia locale viene mantenuta per l'accesso offline</li>
+                            <li>L'esportazione crea un backup in formato JSON</li>
+                            <li>Il reset completo elimina TUTTI i dati (non reversibile)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stato Sistema -->
+            <div style="margin-bottom: 2rem;">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    🔧 Stato Sistema
+                </h3>
+                <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-md);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div style="text-align: center; background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px;">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🔥</div>
+                            <div style="font-weight: bold; color: var(--success-color);">Firebase</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Connesso</div>
+                        </div>
+                        <div style="text-align: center; background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px;">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🎧</div>
+                            <div style="font-weight: bold; color: var(--primary-color);">Listener</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Attivo</div>
+                        </div>
+                        <div style="text-align: center; background: rgba(168, 85, 247, 0.1); padding: 1rem; border-radius: 8px;">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🧠</div>
+                            <div style="font-weight: bold; color: var(--accent-color);">AI</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Disponibile</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Fine Sezione Preferenze -->
 
         <!-- Sezione Preferenze Utente -->
         <div id="preferencesSection" class="section-content" style="display: none;">
@@ -2454,9 +2594,6 @@
                     </button>
                     <button onclick="importUserPreferences()" class="btn-secondary" style="width: 100%; padding: 0.75rem;">
                         📥 Importa Preferenze
-                    </button>
-                    <button onclick="debugPreferencesSync()" class="btn-secondary" style="width: 100%; padding: 0.75rem;">
-                        🔍 Debug Sincronizzazione
                     </button>
                     <button onclick="resetAllPreferences()" class="btn-danger" style="width: 100%; padding: 0.75rem;">
                         🗑️ Reset Completo
