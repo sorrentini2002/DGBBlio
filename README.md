@@ -2,7 +2,7 @@
 
 A modern web application for managing your personal library, wishlist, and discovering new books with AI-powered recommendations.
 
-![Digital Library](https://img.shields.io/badge/Project-Digital%20Lib6. **Recommendation Models**: Extend the ML recommendation system in `BookRecommendationSystem`
+[Digital Library](https://img.shields.io/badge/Project-Digital%20Lib6). **Recommendation Models**: Extend the ML recommendation system in `BookRecommendationSystem`
 7. **AI Prompts**: Customize Gemini AI prompts for different recommendation styles
 
 ## 🔬 Technical Implementation Details
@@ -373,3 +373,4 @@ Please use the [Issues](https://github.com/yourusername/digital-library/issues) 
 ---
 
 **Made with ❤️ for book lovers**
+
