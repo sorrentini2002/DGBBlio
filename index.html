@@ -1656,6 +1656,7 @@
             <button onclick="showSection('wishlist')" id="wishlistTabBtn" class="nav-btn">💝 Lista Desideri</button>
             <button onclick="showSection('quiz')" id="quizTabBtn" class="nav-btn">🧠 Quiz Libri</button>
             <button onclick="showSection('recommendations')" id="recommendationsTabBtn" class="nav-btn">✨ Ti potrebbe piacere anche</button>
+            <button onclick="showSection('preferences')" id="preferencesTabBtn" class="nav-btn">⚙️ Preferenze</button>
         </div>
 
         <!-- Sezione Libri -->
@@ -2373,6 +2374,107 @@
             </div>
         </div>
         <!-- Fine Sezione Raccomandazioni -->
+
+        <!-- Sezione Preferenze Utente -->
+        <div id="preferencesSection" class="section-content" style="display: none;">
+            <div class="preferences-header" style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem;">⚙️ Preferenze Utente</h2>
+                <p style="color: var(--text-secondary); font-size: 1.1rem;">Personalizza la tua esperienza di lettura e il sistema di raccomandazioni</p>
+            </div>
+
+            <!-- Statistiche Utente -->
+            <div class="user-stats-section" style="background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow-md);">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    📊 Le tue statistiche di lettura
+                </h3>
+                <div id="userStatsGrid" class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <!-- Le statistiche verranno inserite qui -->
+                </div>
+            </div>
+
+            <!-- Analisi Automatica Preferenze -->
+            <div class="auto-analysis-section" style="background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow-md);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        🔍 Analisi delle tue preferenze
+                    </h3>
+                    <button onclick="analyzeUserPreferences()" class="btn-primary" style="padding: 0.5rem 1rem;">
+                        🔄 Aggiorna Analisi
+                    </button>
+                </div>
+                <div id="preferenceAnalysis">
+                    <p style="color: var(--text-muted); text-align: center; padding: 2rem;">
+                        Clicca "Aggiorna Analisi" per scoprire i tuoi gusti di lettura in base ai feedback che hai dato
+                    </p>
+                </div>
+            </div>
+
+            <!-- Impostazioni Sistema Raccomandazioni -->
+            <div class="recommendation-settings" style="background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow-md);">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    🎯 Impostazioni Raccomandazioni
+                </h3>
+                
+                <div class="recommendation-mode" style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">
+                        Modalità di raccomandazione:
+                    </label>
+                    <select id="recommendationMode" onchange="setRecommendationMode(this.value)" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 8px; background: white;">
+                        <option value="hybrid">🔄 Ibrido (Raccomandato) - Combina stile e contenuto</option>
+                        <option value="content">📝 Basato su Contenuto - Solo somiglianze tematiche</option>
+                        <option value="style">🎨 Basato su Stile - Solo somiglianze stilistiche</option>
+                    </select>
+                </div>
+
+                <div class="recommendation-weights" style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">
+                        Numero di raccomandazioni per libro:
+                    </label>
+                    <input type="range" id="recommendationCount" min="3" max="12" value="8" onchange="setRecommendationCount(this.value)" style="width: 100%; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.9rem;">
+                        <span>3 (Meno)</span>
+                        <span id="recommendationCountDisplay">8</span>
+                        <span>12 (Più)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gestione Dati -->
+            <div class="data-management" style="background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow-md);">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    💾 Gestione Dati
+                </h3>
+                
+                <div class="data-actions" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <button onclick="syncWithFirebase()" class="btn-primary" style="width: 100%; padding: 0.75rem;">
+                        🔄 Sincronizza con Cloud
+                    </button>
+                    <button onclick="exportUserPreferences()" class="btn-secondary" style="width: 100%; padding: 0.75rem;">
+                        📤 Esporta Preferenze
+                    </button>
+                    <button onclick="importUserPreferences()" class="btn-secondary" style="width: 100%; padding: 0.75rem;">
+                        📥 Importa Preferenze
+                    </button>
+                    <button onclick="resetAllPreferences()" class="btn-danger" style="width: 100%; padding: 0.75rem;">
+                        🗑️ Reset Completo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info Utente -->
+            <div class="user-info" style="background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow-md);">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    👤 Informazioni Account
+                </h3>
+                <div id="userIdDisplay" style="color: var(--text-secondary); font-size: 0.9rem; font-family: monospace; background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 8px;">
+                    ID Utente: Caricamento...
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0.5rem 0 0 0;">
+                    Questo ID univoco identifica i tuoi dati nel sistema. È generato automaticamente e salvato localmente.
+                </p>
+            </div>
+        </div>
+        <!-- Fine Sezione Preferenze -->
     </div>
     
     <!-- Firebase SDK moderno -->
@@ -2397,7 +2499,8 @@
             getDocs, 
             onSnapshot,
             query,
-            orderBy 
+            orderBy,
+            serverTimestamp
         } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
         // Configurazione Firebase
@@ -2434,7 +2537,8 @@
             getDocs,
             onSnapshot,
             query,
-            orderBy
+            orderBy,
+            serverTimestamp
         };
 
         console.log("Firebase inizializzato correttamente per app");

@@ -1301,22 +1301,26 @@ function initApp() {
         const wishlistSection = document.getElementById('wishlistSection');
         const quizSection = document.getElementById('quizSection');
         const recommendationsSection = document.getElementById('recommendationsSection');
+        const preferencesSection = document.getElementById('preferencesSection');
         const booksTabBtn = document.getElementById('booksTabBtn');
         const wishlistTabBtn = document.getElementById('wishlistTabBtn');
         const quizTabBtn = document.getElementById('quizTabBtn');
         const recommendationsTabBtn = document.getElementById('recommendationsTabBtn');
+        const preferencesTabBtn = document.getElementById('preferencesTabBtn');
         
         // Nascondi tutte le sezioni
         booksSection.style.display = 'none';
         wishlistSection.style.display = 'none';
         quizSection.style.display = 'none';
         if (recommendationsSection) recommendationsSection.style.display = 'none';
+        if (preferencesSection) preferencesSection.style.display = 'none';
         
         // Rimuovi active da tutti i pulsanti
         booksTabBtn.classList.remove('active');
         wishlistTabBtn.classList.remove('active');
         quizTabBtn.classList.remove('active');
         if (recommendationsTabBtn) recommendationsTabBtn.classList.remove('active');
+        if (preferencesTabBtn) preferencesTabBtn.classList.remove('active');
         
         if (section === 'books') {
             booksSection.style.display = 'block';
@@ -1339,6 +1343,14 @@ function initApp() {
                 
                 // Aggiorna le statistiche quando si entra nella sezione
                 updateRecommendationStats();
+            }
+        } else if (section === 'preferences') {
+            if (preferencesSection) {
+                preferencesSection.style.display = 'block';
+                if (preferencesTabBtn) preferencesTabBtn.classList.add('active');
+                
+                // Inizializza la sezione preferenze
+                initPreferencesSection();
             }
         }
     };
@@ -2367,6 +2379,7 @@ function initApp() {
             // Storage per feedback e cronologia utente (integrato con Firebase)
             this.userFeedback = new Map();
             this.viewHistory = new Map();
+            this.userPreferences = new Map();
             
             // Cache per performance
             this.idfCache = new Map();
@@ -2383,8 +2396,26 @@ function initApp() {
                 freshness: 0.05
             };
             
-            // Inizializza dal localStorage se disponibile
+            // Firebase references
+            this.db = window.firebaseDb;
+            this.firebaseModules = window.firebaseModules;
+            
+            // ID utente per Firebase (per ora usiamo un ID fisso, in futuro si può integrare con autenticazione)
+            this.userId = this.generateUserId();
+            
+            // Inizializza dai dati (prima localStorage come fallback, poi Firebase)
             this.loadUserDataFromStorage();
+            this.loadUserDataFromFirebase();
+        }
+        
+        // Genera un ID utente univoco (persistente nel localStorage)
+        generateUserId() {
+            let userId = localStorage.getItem('bookRecommendationUserId');
+            if (!userId) {
+                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('bookRecommendationUserId', userId);
+            }
+            return userId;
         }
 
         // === TOKENIZZAZIONE AVANZATA ===
@@ -2839,13 +2870,89 @@ function initApp() {
             console.log('🗑️ Cache invalidata');
         }
 
-        // === PERSISTENZA DATI UTENTE ===
+        // === PERSISTENZA DATI UTENTE CON FIREBASE ===
+        async saveUserDataToFirebase() {
+            if (!this.db || !this.firebaseModules) {
+                console.warn('⚠️ Firebase non disponibile, uso localStorage come fallback');
+                this.saveUserDataToStorage();
+                return;
+            }
+            
+            try {
+                const { doc, setDoc, serverTimestamp } = this.firebaseModules;
+                
+                const userData = {
+                    feedback: Object.fromEntries(this.userFeedback),
+                    viewHistory: Object.fromEntries(this.viewHistory),
+                    preferences: Object.fromEntries(this.userPreferences),
+                    timestamp: serverTimestamp(),
+                    lastUpdate: Date.now()
+                };
+                
+                const userDocRef = doc(this.db, 'userPreferences', this.userId);
+                await setDoc(userDocRef, userData, { merge: true });
+                
+                console.log('✅ Dati utente salvati su Firebase');
+                
+                // Salva anche nel localStorage come backup
+                this.saveUserDataToStorage();
+            } catch (error) {
+                console.warn('⚠️ Impossibile salvare su Firebase, uso localStorage:', error);
+                this.saveUserDataToStorage();
+            }
+        }
+        
+        async loadUserDataFromFirebase() {
+            if (!this.db || !this.firebaseModules) {
+                console.warn('⚠️ Firebase non disponibile, uso solo localStorage');
+                return;
+            }
+            
+            try {
+                const { doc, getDoc } = this.firebaseModules;
+                
+                const userDocRef = doc(this.db, 'userPreferences', this.userId);
+                const docSnap = await getDoc(userDocRef);
+                
+                if (docSnap.exists()) {
+                    const userData = docSnap.data();
+                    
+                    // Carica feedback
+                    if (userData.feedback) {
+                        this.userFeedback = new Map(Object.entries(userData.feedback));
+                    }
+                    
+                    // Carica cronologia visualizzazioni
+                    if (userData.viewHistory) {
+                        this.viewHistory = new Map(Object.entries(userData.viewHistory));
+                    }
+                    
+                    // Carica preferenze utente
+                    if (userData.preferences) {
+                        this.userPreferences = new Map(Object.entries(userData.preferences));
+                    }
+                    
+                    console.log('✅ Dati utente caricati da Firebase');
+                    console.log(`📊 Statistiche: ${this.userFeedback.size} feedback, ${this.viewHistory.size} visualizzazioni, ${this.userPreferences.size} preferenze`);
+                    
+                    // Salva anche nel localStorage per cache locale
+                    this.saveUserDataToStorage();
+                } else {
+                    console.log('💡 Nessun dato utente trovato su Firebase, utilizzo dati locali');
+                }
+            } catch (error) {
+                console.warn('⚠️ Impossibile caricare da Firebase:', error);
+            }
+        }
+
         saveUserDataToStorage() {
             try {
                 const userData = {
                     feedback: Object.fromEntries(this.userFeedback),
                     viewHistory: Object.fromEntries(this.viewHistory),
-                    timestamp: Date.now()
+                    preferences: Object.fromEntries(this.userPreferences),
+                    timestamp: Date.now(),
+                    userId: this.userId
                 };
                 localStorage.setItem('bookRecommendationData', JSON.stringify(userData));
             } catch (error) {
@@ -2858,12 +2965,17 @@ function initApp() {
                 const stored = localStorage.getItem('bookRecommendationData');
                 if (stored) {
                     const userData = JSON.parse(stored);
+                    
                     if (userData.feedback) {
                         this.userFeedback = new Map(Object.entries(userData.feedback));
                     }
                     if (userData.viewHistory) {
                         this.viewHistory = new Map(Object.entries(userData.viewHistory));
                     }
+                    if (userData.preferences) {
+                        this.userPreferences = new Map(Object.entries(userData.preferences));
+                    }
+                    
                     console.log('✅ Dati utente caricati dal localStorage');
                 }
             } catch (error) {
@@ -2871,11 +2983,156 @@ function initApp() {
             }
         }
 
+        // === GESTIONE PREFERENZE UTENTE ===
+        async setUserPreference(key, value) {
+            this.userPreferences.set(key, value);
+            await this.saveUserDataToFirebase();
+            console.log(`✅ Preferenza salvata: ${key} = ${value}`);
+        }
+        
+        getUserPreference(key, defaultValue = null) {
+            return this.userPreferences.get(key) || defaultValue;
+        }
+        
+        async removeUserPreference(key) {
+            this.userPreferences.delete(key);
+            await this.saveUserDataToFirebase();
+            console.log(`🗑️ Preferenza rimossa: ${key}`);
+        }
+        
+        // === FEEDBACK E INTERAZIONI UTENTE ===
+        async recordBookFeedback(bookTitle, rating) {
+            // Rating: -1 = dislike, 0 = neutral, 1 = like
+            this.userFeedback.set(bookTitle, rating);
+            await this.saveUserDataToFirebase();
+            console.log(`📊 Feedback registrato: ${bookTitle} = ${rating}`);
+        }
+        
+        async recordBookView(bookTitle) {
+            const currentViews = this.viewHistory.get(bookTitle) || 0;
+            this.viewHistory.set(bookTitle, currentViews + 1);
+            await this.saveUserDataToFirebase();
+        }
+        
+        // === ANALISI PREFERENZE AUTOMATICHE ===
+        async analyzeUserPreferences() {
+            const analysis = {
+                favoriteGenres: this.extractFavoriteGenres(),
+                preferredAuthors: this.extractPreferredAuthors(),
+                bookLengthPreference: this.extractLengthPreference(),
+                yearPreference: this.extractYearPreference(),
+                readingPatterns: this.extractReadingPatterns()
+            };
+            
+            // Salva le preferenze analizzate
+            await this.setUserPreference('autoAnalysis', analysis);
+            await this.setUserPreference('lastAnalysis', Date.now());
+            
+            console.log('🔍 Analisi preferenze completata:', analysis);
+            return analysis;
+        }
+        
+        extractFavoriteGenres() {
+            const genreScores = new Map();
+            
+            // Analizza i feedback positivi per estrarre generi preferiti
+            for (const [title, rating] of this.userFeedback) {
+                if (rating > 0) {
+                    const book = allBooks.find(b => b.title === title);
+                    if (book && book.tags) {
+                        book.tags.forEach(tag => {
+                            const current = genreScores.get(tag) || 0;
+                            genreScores.set(tag, current + rating);
+                        });
+                    }
+                }
+            }
+            
+            return Array.from(genreScores.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([genre, score]) => ({ genre, score }));
+        }
+        
+        extractPreferredAuthors() {
+            const authorScores = new Map();
+            
+            for (const [title, rating] of this.userFeedback) {
+                if (rating > 0) {
+                    const book = allBooks.find(b => b.title === title);
+                    if (book && book.author) {
+                        const current = authorScores.get(book.author) || 0;
+                        authorScores.set(book.author, current + rating);
+                    }
+                }
+            }
+            
+            return Array.from(authorScores.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([author, score]) => ({ author, score }));
+        }
+        
+        extractLengthPreference() {
+            const lengthFeedback = [];
+            
+            for (const [title, rating] of this.userFeedback) {
+                const book = allBooks.find(b => b.title === title);
+                if (book && book.pages && rating !== 0) {
+                    lengthFeedback.push({ pages: book.pages, rating });
+                }
+            }
+            
+            if (lengthFeedback.length === 0) return null;
+            
+            const avgPages = lengthFeedback
+                .filter(item => item.rating > 0)
+                .reduce((sum, item) => sum + item.pages, 0) / lengthFeedback.filter(item => item.rating > 0).length;
+                
+            return Math.round(avgPages) || null;
+        }
+        
+        extractYearPreference() {
+            const yearFeedback = [];
+            
+            for (const [title, rating] of this.userFeedback) {
+                const book = allBooks.find(b => b.title === title);
+                if (book && book.year && rating > 0) {
+                    yearFeedback.push(book.year);
+                }
+            }
+            
+            if (yearFeedback.length === 0) return null;
+            
+            // Calcola l'anno medio preferito
+            const avgYear = yearFeedback.reduce((sum, year) => sum + year, 0) / yearFeedback.length;
+            return Math.round(avgYear);
+        }
+        
+        extractReadingPatterns() {
+            const patterns = {
+                totalInteractions: this.userFeedback.size,
+                positiveRatings: Array.from(this.userFeedback.values()).filter(r => r > 0).length,
+                negativeRatings: Array.from(this.userFeedback.values()).filter(r => r < 0).length,
+                mostViewedBooks: Array.from(this.viewHistory.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([title, views]) => ({ title, views }))
+            };
+            
+            patterns.positivityRate = patterns.totalInteractions > 0 ? 
+                patterns.positiveRatings / patterns.totalInteractions : 0;
+                
+            return patterns;
+        }
+
         // === STATISTICHE E DEBUG ===
         getStats() {
             return {
                 feedbackEntries: this.userFeedback.size,
                 viewHistory: this.viewHistory.size,
+                preferences: this.userPreferences.size,
+                userId: this.userId,
                 cacheSize: this.vectorCache.size + this.idfCache.size,
                 lastCacheUpdate: this.lastCacheUpdate,
                 totalViews: Array.from(this.viewHistory.values()).reduce((sum, views) => sum + views, 0)
@@ -2887,12 +3144,14 @@ function initApp() {
             return {
                 feedback: Object.fromEntries(this.userFeedback),
                 viewHistory: Object.fromEntries(this.viewHistory),
+                preferences: Object.fromEntries(this.userPreferences),
+                userId: this.userId,
                 timestamp: Date.now(),
-                version: "2.0"
+                version: "2.1"
             };
         }
 
-        importUserData(data) {
+        async importUserData(data) {
             try {
                 if (data.feedback) {
                     this.userFeedback = new Map(Object.entries(data.feedback));
@@ -2900,7 +3159,11 @@ function initApp() {
                 if (data.viewHistory) {
                     this.viewHistory = new Map(Object.entries(data.viewHistory));
                 }
-                this.saveUserDataToStorage();
+                if (data.preferences) {
+                    this.userPreferences = new Map(Object.entries(data.preferences));
+                }
+                
+                await this.saveUserDataToFirebase();
                 this.invalidateCache();
                 console.log('✅ Dati utente importati con successo');
             } catch (error) {
@@ -2909,12 +3172,35 @@ function initApp() {
         }
 
         // === RESET DATI ===
-        resetUserData() {
+        async resetUserData() {
             this.userFeedback.clear();
             this.viewHistory.clear();
+            this.userPreferences.clear();
             this.invalidateCache();
+            
+            // Rimuovi da Firebase
+            if (this.db && this.firebaseModules) {
+                try {
+                    const { doc, deleteDoc } = this.firebaseModules;
+                    const userDocRef = doc(this.db, 'userPreferences', this.userId);
+                    await deleteDoc(userDocRef);
+                    console.log('🔄 Dati utente rimossi da Firebase');
+                } catch (error) {
+                    console.warn('⚠️ Impossibile rimuovere dati da Firebase:', error);
+                }
+            }
+            
+            // Rimuovi da localStorage
             localStorage.removeItem('bookRecommendationData');
-            console.log('🔄 Dati utente resettati');
+            console.log('🔄 Dati utente resettati completamente');
+        }
+        
+        // === SINCRONIZZAZIONE DATI ===
+        async syncWithFirebase() {
+            console.log('🔄 Sincronizzazione con Firebase...');
+            await this.loadUserDataFromFirebase();
+            await this.saveUserDataToFirebase();
+            console.log('✅ Sincronizzazione completata');
         }
     }
 
@@ -5021,4 +5307,389 @@ window.testDataLists = () => {
         });
         console.log("✅ Datalist autori aggiornato con", authorsArray.length, "opzioni");
     }
+};
+
+// ===== FUNZIONI GESTIONE PREFERENZE =====
+
+// Inizializza la sezione preferenze
+window.initPreferencesSection = async () => {
+    console.log('🔧 Inizializzazione sezione preferenze...');
+    
+    // Aggiorna statistiche utente
+    updateUserStats();
+    
+    // Mostra ID utente
+    const userIdDisplay = document.getElementById('userIdDisplay');
+    if (userIdDisplay && bookRecommendationSystem) {
+        userIdDisplay.innerHTML = `ID Utente: ${bookRecommendationSystem.userId}`;
+    }
+    
+    // Carica impostazioni correnti
+    loadCurrentPreferences();
+    
+    console.log('✅ Sezione preferenze inizializzata');
+};
+
+// Aggiorna le statistiche utente
+window.updateUserStats = () => {
+    const userStatsGrid = document.getElementById('userStatsGrid');
+    if (!userStatsGrid || !bookRecommendationSystem) return;
+    
+    const stats = bookRecommendationSystem.getStats();
+    
+    userStatsGrid.innerHTML = `
+        <div class="stat-card" style="background: white; border-radius: 12px; padding: 1rem; text-align: center; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📚</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">${allBooks.length}</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Libri nella libreria</div>
+        </div>
+        <div class="stat-card" style="background: white; border-radius: 12px; padding: 1rem; text-align: center; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">💝</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--secondary-color);">${allWishlistItems.length}</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Libri in wishlist</div>
+        </div>
+        <div class="stat-card" style="background: white; border-radius: 12px; padding: 1rem; text-align: center; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">👍</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--success-color);">${stats.feedbackEntries}</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Feedback dati</div>
+        </div>
+        <div class="stat-card" style="background: white; border-radius: 12px; padding: 1rem; text-align: center; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">👁️</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">${stats.totalViews}</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Visualizzazioni totali</div>
+        </div>
+        <div class="stat-card" style="background: white; border-radius: 12px; padding: 1rem; text-align: center; box-shadow: var(--shadow-sm);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚙️</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: var(--warning-color);">${stats.preferences}</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Preferenze salvate</div>
+        </div>
+    `;
+};
+
+// Analizza le preferenze utente
+window.analyzeUserPreferences = async () => {
+    if (!bookRecommendationSystem) {
+        console.error('Sistema di raccomandazioni non disponibile');
+        return;
+    }
+    
+    const analysisDiv = document.getElementById('preferenceAnalysis');
+    if (!analysisDiv) return;
+    
+    // Mostra loading
+    analysisDiv.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            <div style="font-size: 2rem; margin-bottom: 1rem;">🔍</div>
+            <p>Analizzando le tue preferenze...</p>
+        </div>
+    `;
+    
+    try {
+        const analysis = await bookRecommendationSystem.analyzeUserPreferences();
+        
+        // Visualizza risultati
+        let html = '';
+        
+        if (analysis.favoriteGenres && analysis.favoriteGenres.length > 0) {
+            html += `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">🎭 Generi Preferiti</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        ${analysis.favoriteGenres.map(({ genre, score }) => `
+                            <span style="background: var(--primary-gradient); color: white; padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.85rem; font-weight: 500;">
+                                ${genre} (${score > 0 ? '+' : ''}${score})
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (analysis.preferredAuthors && analysis.preferredAuthors.length > 0) {
+            html += `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">✍️ Autori Preferiti</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        ${analysis.preferredAuthors.map(({ author, score }) => `
+                            <span style="background: var(--secondary-gradient); color: white; padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.85rem; font-weight: 500;">
+                                ${author} (${score > 0 ? '+' : ''}${score})
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (analysis.bookLengthPreference) {
+            html += `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📏 Lunghezza Preferita</h4>
+                    <p style="color: var(--text-secondary); margin: 0;">
+                        Preferisci libri di circa ${analysis.bookLengthPreference} pagine
+                    </p>
+                </div>
+            `;
+        }
+        
+        if (analysis.yearPreference) {
+            html += `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📅 Periodo Preferito</h4>
+                    <p style="color: var(--text-secondary); margin: 0;">
+                        Hai una preferenza per libri del ${analysis.yearPreference}
+                    </p>
+                </div>
+            `;
+        }
+        
+        if (analysis.readingPatterns) {
+            const patterns = analysis.readingPatterns;
+            html += `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📊 Modelli di Lettura</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <div style="text-align: center; background: rgba(102, 126, 234, 0.1); padding: 0.5rem; border-radius: 8px;">
+                            <div style="font-weight: bold; color: var(--primary-color);">${Math.round(patterns.positivityRate * 100)}%</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Positività</div>
+                        </div>
+                        <div style="text-align: center; background: rgba(34, 197, 94, 0.1); padding: 0.5rem; border-radius: 8px;">
+                            <div style="font-weight: bold; color: var(--success-color);">${patterns.positiveRatings}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Like</div>
+                        </div>
+                        <div style="text-align: center; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 8px;">
+                            <div style="font-weight: bold; color: var(--danger-color);">${patterns.negativeRatings}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Dislike</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (html === '') {
+            html = `
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">📝</div>
+                    <p>Non ci sono ancora abbastanza dati per analizzare le tue preferenze.</p>
+                    <p>Inizia a dare feedback sui libri per ottenere analisi personalizzate!</p>
+                </div>
+            `;
+        }
+        
+        analysisDiv.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Errore nell\'analisi delle preferenze:', error);
+        analysisDiv.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--danger-color);">
+                <div style="font-size: 2rem; margin-bottom: 1rem;">❌</div>
+                <p>Errore nell'analisi delle preferenze</p>
+            </div>
+        `;
+    }
+};
+
+// Carica le impostazioni correnti
+window.loadCurrentPreferences = () => {
+    if (!bookRecommendationSystem) return;
+    
+    // Modalità raccomandazione
+    const mode = bookRecommendationSystem.getUserPreference('recommendationMode', 'hybrid');
+    const modeSelect = document.getElementById('recommendationMode');
+    if (modeSelect) {
+        modeSelect.value = mode;
+    }
+    
+    // Numero raccomandazioni
+    const count = bookRecommendationSystem.getUserPreference('recommendationCount', 8);
+    const countSlider = document.getElementById('recommendationCount');
+    const countDisplay = document.getElementById('recommendationCountDisplay');
+    if (countSlider) {
+        countSlider.value = count;
+    }
+    if (countDisplay) {
+        countDisplay.textContent = count;
+    }
+};
+
+// Imposta modalità raccomandazione
+window.setRecommendationMode = async (mode) => {
+    if (!bookRecommendationSystem) return;
+    
+    await bookRecommendationSystem.setUserPreference('recommendationMode', mode);
+    console.log(`✅ Modalità raccomandazione impostata: ${mode}`);
+};
+
+// Imposta numero raccomandazioni
+window.setRecommendationCount = async (count) => {
+    if (!bookRecommendationSystem) return;
+    
+    await bookRecommendationSystem.setUserPreference('recommendationCount', parseInt(count));
+    
+    const countDisplay = document.getElementById('recommendationCountDisplay');
+    if (countDisplay) {
+        countDisplay.textContent = count;
+    }
+    
+    console.log(`✅ Numero raccomandazioni impostato: ${count}`);
+};
+
+// Sincronizza con Firebase
+window.syncWithFirebase = async () => {
+    if (!bookRecommendationSystem) return;
+    
+    try {
+        await bookRecommendationSystem.syncWithFirebase();
+        
+        // Mostra notifica di successo
+        showNotification('✅ Sincronizzazione completata con successo!', 'success');
+        
+        // Aggiorna la sezione
+        updateUserStats();
+        
+    } catch (error) {
+        console.error('Errore nella sincronizzazione:', error);
+        showNotification('❌ Errore nella sincronizzazione', 'error');
+    }
+};
+
+// Esporta preferenze utente
+window.exportUserPreferences = () => {
+    if (!bookRecommendationSystem) return;
+    
+    try {
+        const userData = bookRecommendationSystem.exportUserData();
+        
+        const dataStr = JSON.stringify(userData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = `preferenze_utente_${new Date().toISOString().slice(0,10)}.json`;
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+        
+        showNotification('📤 Preferenze esportate con successo!', 'success');
+        
+    } catch (error) {
+        console.error('Errore nell\'esportazione:', error);
+        showNotification('❌ Errore nell\'esportazione', 'error');
+    }
+};
+
+// Importa preferenze utente
+window.importUserPreferences = () => {
+    if (!bookRecommendationSystem) return;
+    
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        try {
+            const text = await file.text();
+            const userData = JSON.parse(text);
+            
+            await bookRecommendationSystem.importUserData(userData);
+            
+            showNotification('📥 Preferenze importate con successo!', 'success');
+            
+            // Aggiorna la sezione
+            updateUserStats();
+            loadCurrentPreferences();
+            
+        } catch (error) {
+            console.error('Errore nell\'importazione:', error);
+            showNotification('❌ File non valido o corrotto', 'error');
+        }
+    };
+    
+    input.click();
+};
+
+// Reset completo delle preferenze
+window.resetAllPreferences = async () => {
+    if (!bookRecommendationSystem) return;
+    
+    const confirmed = confirm(
+        '🚨 ATTENZIONE: Reset Completo\n\n' +
+        'Questa operazione eliminerà TUTTI i tuoi dati:\n' +
+        '• Feedback sui libri\n' +
+        '• Cronologia visualizzazioni\n' +
+        '• Preferenze personali\n' +
+        '• Dati di analisi\n\n' +
+        'L\'operazione NON può essere annullata!\n\n' +
+        'Sei sicuro di voler procedere?'
+    );
+    
+    if (confirmed) {
+        try {
+            await bookRecommendationSystem.resetUserData();
+            
+            showNotification('🔄 Reset completo eseguito!', 'success');
+            
+            // Aggiorna la sezione
+            updateUserStats();
+            loadCurrentPreferences();
+            
+            // Pulisci l'analisi
+            const analysisDiv = document.getElementById('preferenceAnalysis');
+            if (analysisDiv) {
+                analysisDiv.innerHTML = `
+                    <p style="color: var(--text-muted); text-align: center; padding: 2rem;">
+                        Dati resettati. Clicca "Aggiorna Analisi" dopo aver dato nuovi feedback.
+                    </p>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Errore nel reset:', error);
+            showNotification('❌ Errore durante il reset', 'error');
+        }
+    }
+};
+
+// Mostra notifica
+function showNotification(message, type = 'info') {
+    // Crea elemento notifica
+    const notification = document.createElement('div');
+    notification.className = 'preference-notification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 
+                    type === 'error' ? 'linear-gradient(135deg, #f56565 0%, #e53e3e 100%)' : 
+                    'linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%)'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--shadow-lg);
+        z-index: 10000;
+        max-width: 300px;
+        font-weight: 500;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Animazione di entrata
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Rimozione automatica
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 };
