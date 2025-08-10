@@ -2414,13 +2414,8 @@ function initApp() {
         
         // Genera un ID utente univoco (persistente nel localStorage)
         generateUserId() {
-            let userId = localStorage.getItem('bookRecommendationUserId');
-            if (!userId) {
-                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('bookRecommendationUserId', userId);
-            }
-            return userId;
-        }
+    return 'anonymous'; // Sincronizzato con libri e wishlist
+}
 
         // === TOKENIZZAZIONE AVANZATA ===
         tokenize(text) {
@@ -5619,48 +5614,13 @@ window.analyzeUserPreferences = async () => {
 };
 
 // Carica le impostazioni correnti
+// Carica le impostazioni correnti
 window.loadCurrentPreferences = () => {
     if (!bookRecommendationSystem) return;
     
-    // Modalità raccomandazione
-    const mode = bookRecommendationSystem.getUserPreference('recommendationMode', 'hybrid');
-    const modeSelect = document.getElementById('recommendationMode');
-    if (modeSelect) {
-        modeSelect.value = mode;
-    }
-    
-    // Numero raccomandazioni
-    const count = bookRecommendationSystem.getUserPreference('recommendationCount', 8);
-    const countSlider = document.getElementById('recommendationCount');
-    const countDisplay = document.getElementById('recommendationCountDisplay');
-    if (countSlider) {
-        countSlider.value = count;
-    }
-    if (countDisplay) {
-        countDisplay.textContent = count;
-    }
-};
-
-// Imposta modalità raccomandazione
-window.setRecommendationMode = async (mode) => {
-    if (!bookRecommendationSystem) return;
-    
-    await bookRecommendationSystem.setUserPreference('recommendationMode', mode);
-    console.log(`✅ Modalità raccomandazione impostata: ${mode}`);
-};
-
-// Imposta numero raccomandazioni
-window.setRecommendationCount = async (count) => {
-    if (!bookRecommendationSystem) return;
-    
-    await bookRecommendationSystem.setUserPreference('recommendationCount', parseInt(count));
-    
-    const countDisplay = document.getElementById('recommendationCountDisplay');
-    if (countDisplay) {
-        countDisplay.textContent = count;
-    }
-    
-    console.log(`✅ Numero raccomandazioni impostato: ${count}`);
+    // Al momento non ci sono impostazioni specifiche da caricare
+    // Questa funzione è mantenuta per future implementazioni
+    console.log('✅ Preferenze caricate');
 };
 
 // Sincronizza con Firebase
