@@ -586,24 +586,30 @@ function initApp() {
         const title = document.getElementById('bookTitle').value.trim();
         const author = document.getElementById('bookAuthor').value.trim();
         
-        if (!title || !author) {
-            alert('Inserisci titolo e autore per cercare automaticamente');
+        if (!title) {
+            alert('Inserisci almeno il titolo per cercare automaticamente');
             return;
         }
         
         // Controlla duplicati prima di cercare
         if (!editingId) {
-            const isDuplicate = allBooks.some(book => 
-                book.title.toLowerCase().trim() === title.toLowerCase().trim() && 
-                book.author.toLowerCase().trim() === author.toLowerCase().trim()
-            );
+            const isDuplicate = allBooks.some(book => {
+                // Se abbiamo sia titolo che autore, confronta entrambi
+                if (author) {
+                    return book.title.toLowerCase().trim() === title.toLowerCase().trim() && 
+                           book.author.toLowerCase().trim() === author.toLowerCase().trim();
+                }
+                // Se abbiamo solo il titolo, confronta solo il titolo
+                return book.title.toLowerCase().trim() === title.toLowerCase().trim();
+            });
             
             if (isDuplicate) {
                 const searchResults = document.getElementById('searchResults');
+                const authorText = author ? ` di <strong>${author}</strong>` : '';
                 searchResults.innerHTML = `
                     <div class="manual-message">
                         <h4>⚠️ Libro già presente</h4>
-                        <p>Il libro "<strong>${title}</strong>" di <strong>${author}</strong> è già presente nella tua biblioteca.</p>
+                        <p>Il libro "<strong>${title}</strong>"${authorText} è già presente nella tua biblioteca.</p>
                         <p>Non è possibile aggiungere duplicati.</p>
                     </div>
                 `;
@@ -649,7 +655,9 @@ function initApp() {
     
     async function searchGoogleBooks(title, author) {
         try {
-            const query = encodeURIComponent(`${title} ${author}`);
+            // Costruisci la query: usa solo il titolo se l'autore è vuoto
+            const searchTerms = author ? `${title} ${author}` : title;
+            const query = encodeURIComponent(searchTerms);
             const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=3`);
             const data = await response.json();
             
@@ -679,7 +687,9 @@ function initApp() {
     
     async function searchOpenLibrary(title, author) {
         try {
-            const query = encodeURIComponent(`${title} ${author}`);
+            // Costruisci la query: usa solo il titolo se l'autore è vuoto
+            const searchTerms = author ? `${title} ${author}` : title;
+            const query = encodeURIComponent(searchTerms);
             const response = await fetch(`https://openlibrary.org/search.json?q=${query}&limit=3`);
             const data = await response.json();
             
@@ -784,20 +794,26 @@ function initApp() {
             updated_at: new Date()
         };
 
-        if (!bookData.title || !bookData.author) {
-            alert('Titolo e autore sono obbligatori');
+        if (!bookData.title) {
+            alert('Il titolo è obbligatorio');
             return;
         }
 
         // Controllo duplicati solo per nuovi libri (non per modifiche)
         if (!editingId) {
-            const isDuplicate = allBooks.some(book => 
-                book.title.toLowerCase().trim() === bookData.title.toLowerCase().trim() && 
-                book.author.toLowerCase().trim() === bookData.author.toLowerCase().trim()
-            );
+            const isDuplicate = allBooks.some(book => {
+                // Se il nuovo libro ha l'autore, confronta entrambi
+                if (bookData.author) {
+                    return book.title.toLowerCase().trim() === bookData.title.toLowerCase().trim() && 
+                           book.author.toLowerCase().trim() === bookData.author.toLowerCase().trim();
+                }
+                // Se il nuovo libro non ha l'autore, confronta solo il titolo
+                return book.title.toLowerCase().trim() === bookData.title.toLowerCase().trim();
+            });
             
             if (isDuplicate) {
-                alert(`⚠️ LIBRO GIÀ PRESENTE\n\nIl libro "${bookData.title}" di ${bookData.author} è già presente nella tua biblioteca.\n\nNon è possibile aggiungere duplicati.`);
+                const authorText = bookData.author ? ` di ${bookData.author}` : '';
+                alert(`⚠️ LIBRO GIÀ PRESENTE\n\nIl libro "${bookData.title}"${authorText} è già presente nella tua biblioteca.\n\nNon è possibile aggiungere duplicati.`);
                 return;
             }
         }
@@ -1778,24 +1794,30 @@ function initApp() {
         const title = document.getElementById('wishlistBookTitle').value.trim();
         const author = document.getElementById('wishlistBookAuthor').value.trim();
         
-        if (!title || !author) {
-            alert('Inserisci titolo e autore per cercare automaticamente');
+        if (!title) {
+            alert('Inserisci almeno il titolo per cercare automaticamente');
             return;
         }
         
         // Controlla duplicati nella wishlist prima di cercare
         if (!editingWishlistId) {
-            const isDuplicate = allWishlistItems.some(item => 
-                item.title.toLowerCase().trim() === title.toLowerCase().trim() && 
-                item.author.toLowerCase().trim() === author.toLowerCase().trim()
-            );
+            const isDuplicate = allWishlistItems.some(item => {
+                // Se abbiamo sia titolo che autore, confronta entrambi
+                if (author) {
+                    return item.title.toLowerCase().trim() === title.toLowerCase().trim() && 
+                           item.author.toLowerCase().trim() === author.toLowerCase().trim();
+                }
+                // Se abbiamo solo il titolo, confronta solo il titolo
+                return item.title.toLowerCase().trim() === title.toLowerCase().trim();
+            });
             
             if (isDuplicate) {
                 const searchResults = document.getElementById('wishlistSearchResults');
+                const authorText = author ? ` di <strong>${author}</strong>` : '';
                 searchResults.innerHTML = `
                     <div class="manual-message">
                         <h4>⚠️ Libro già presente nella wishlist</h4>
-                        <p>Il libro "<strong>${title}</strong>" di <strong>${author}</strong> è già presente nella tua wishlist.</p>
+                        <p>Il libro "<strong>${title}</strong>"${authorText} è già presente nella tua wishlist.</p>
                         <p>Non è possibile aggiungere duplicati.</p>
                     </div>
                 `;
@@ -1804,17 +1826,23 @@ function initApp() {
             }
             
             // Controlla anche se è già nei libri letti
-            const isInLibrary = allBooks.some(book => 
-                book.title.toLowerCase().trim() === title.toLowerCase().trim() && 
-                book.author.toLowerCase().trim() === author.toLowerCase().trim()
-            );
+            const isInLibrary = allBooks.some(book => {
+                // Se abbiamo sia titolo che autore, confronta entrambi
+                if (author) {
+                    return book.title.toLowerCase().trim() === title.toLowerCase().trim() && 
+                           book.author.toLowerCase().trim() === author.toLowerCase().trim();
+                }
+                // Se abbiamo solo il titolo, confronta solo il titolo
+                return book.title.toLowerCase().trim() === title.toLowerCase().trim();
+            });
             
             if (isInLibrary) {
                 const searchResults = document.getElementById('wishlistSearchResults');
+                const authorText = author ? ` di <strong>${author}</strong>` : '';
                 searchResults.innerHTML = `
                     <div class="manual-message">
                         <h4>📚 Libro già letto</h4>
-                        <p>Il libro "<strong>${title}</strong>" di <strong>${author}</strong> è già presente nella tua biblioteca.</p>
+                        <p>Il libro "<strong>${title}</strong>"${authorText} è già presente nella tua biblioteca.</p>
                         <p>Non serve aggiungerlo alla wishlist se l'hai già letto!</p>
                     </div>
                 `;
@@ -1935,31 +1963,43 @@ function initApp() {
             updated_at: new Date()
         };
 
-        if (!itemData.title || !itemData.author) {
-            alert('Titolo e autore sono obbligatori');
+        if (!itemData.title) {
+            alert('Il titolo è obbligatorio');
             return;
         }
 
         // Controllo duplicati nella wishlist
         if (!editingWishlistId) {
-            const isDuplicateInWishlist = allWishlistItems.some(item => 
-                item.title.toLowerCase().trim() === itemData.title.toLowerCase().trim() && 
-                item.author.toLowerCase().trim() === itemData.author.toLowerCase().trim()
-            );
+            const isDuplicateInWishlist = allWishlistItems.some(item => {
+                // Se il nuovo item ha l'autore, confronta entrambi
+                if (itemData.author) {
+                    return item.title.toLowerCase().trim() === itemData.title.toLowerCase().trim() && 
+                           item.author.toLowerCase().trim() === itemData.author.toLowerCase().trim();
+                }
+                // Se il nuovo item non ha l'autore, confronta solo il titolo
+                return item.title.toLowerCase().trim() === itemData.title.toLowerCase().trim();
+            });
             
             if (isDuplicateInWishlist) {
-                alert(`⚠️ LIBRO GIÀ NELLA WISHLIST\n\nIl libro "${itemData.title}" di ${itemData.author} è già presente nella tua wishlist.\n\nNon è possibile aggiungere duplicati.`);
+                const authorText = itemData.author ? ` di ${itemData.author}` : '';
+                alert(`⚠️ LIBRO GIÀ NELLA WISHLIST\n\nIl libro "${itemData.title}"${authorText} è già presente nella tua wishlist.\n\nNon è possibile aggiungere duplicati.`);
                 return;
             }
             
             // Controlla se è già nei libri letti
-            const isInLibrary = allBooks.some(book => 
-                book.title.toLowerCase().trim() === itemData.title.toLowerCase().trim() && 
-                book.author.toLowerCase().trim() === itemData.author.toLowerCase().trim()
-            );
+            const isInLibrary = allBooks.some(book => {
+                // Se il nuovo item ha l'autore, confronta entrambi
+                if (itemData.author) {
+                    return book.title.toLowerCase().trim() === itemData.title.toLowerCase().trim() && 
+                           book.author.toLowerCase().trim() === itemData.author.toLowerCase().trim();
+                }
+                // Se il nuovo item non ha l'autore, confronta solo il titolo
+                return book.title.toLowerCase().trim() === itemData.title.toLowerCase().trim();
+            });
             
             if (isInLibrary) {
-                const confirm = window.confirm(`📚 LIBRO GIÀ LETTO\n\nIl libro "${itemData.title}" di ${itemData.author} è già presente nella tua biblioteca.\n\nVuoi comunque aggiungerlo alla wishlist? (Potrebbe essere utile per rileggere o regalare)`);
+                const authorText = itemData.author ? ` di ${itemData.author}` : '';
+                const confirm = window.confirm(`📚 LIBRO GIÀ LETTO\n\nIl libro "${itemData.title}"${authorText} è già presente nella tua biblioteca.\n\nVuoi comunque aggiungerlo alla wishlist? (Potrebbe essere utile per rileggere o regalare)`);
                 if (!confirm) return;
             }
         }
