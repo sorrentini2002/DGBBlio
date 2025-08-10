@@ -339,10 +339,14 @@ function initApp() {
             const label = document.createElement('label');
             label.className = 'checkbox-label';
             label.innerHTML = `
-                <input type="checkbox" value="${escapeHtml(tag)}" onchange="renderBooks()"> 
+                <input type="checkbox" value="${escapeHtml(tag)}"> 
                 ${escapeHtml(tag)}
             `;
             tagCheckboxes.appendChild(label);
+            
+            // Aggiungi l'event listener direttamente all'elemento
+            const checkbox = label.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', renderBooks);
         });
 
         // Aggiorna i datalist per il form di inserimento libri
@@ -1515,10 +1519,14 @@ function initApp() {
             const label = document.createElement('label');
             label.className = 'checkbox-label';
             label.innerHTML = `
-                <input type="checkbox" value="${escapeHtml(tag)}" onchange="renderWishlist()"> 
+                <input type="checkbox" value="${escapeHtml(tag)}"> 
                 ${escapeHtml(tag)}
             `;
             wishlistTagCheckboxes.appendChild(label);
+            
+            // Aggiungi l'event listener direttamente all'elemento
+            const checkbox = label.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', renderWishlist);
         });
 
         setupWishlistTitleSuggestions();
